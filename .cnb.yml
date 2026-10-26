@@ -40,6 +40,9 @@ main:
               ssh -i /tmp/k -o StrictHostKeyChecking=accept-new "ubuntu@$DEPLOY_HOST" '
                 set -e
                 echo "$(cat ~/.cnb-token)" | sudo -S docker login docker.cnb.cool -u cnb --password-stdin < /dev/null 2>/dev/null || echo "$(cat ~/.cnb-token)" | sudo docker login docker.cnb.cool -u cnb --password-stdin
-                cd ~/harness-deploy && sudo docker compose pull && sudo docker compose up -d
+                cd ~/harness-deploy
+                # 仓库改动 (compose / bootstrap-dev / 脚本) 也要到服务器, 镜像只是其中一半
+                git pull --ff-only 2>/dev/null || echo "git pull 跳过 (本地有改动或非 git 仓库), 继续用现有文件"
+                sudo docker compose pull && sudo docker compose up -d
                 sleep 5; sudo docker compose logs --tail=3 dsh | grep "dsh web:" || true
               '

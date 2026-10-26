@@ -16,6 +16,10 @@ RUN mkdir -p /data/dsh-home /data/workspace \
 
 RUN npm install -g "@deepseek-ai/dsh@${DSH_VERSION}" && dsh --version
 
+# dsh plugin 只是把参数转发给 PATH 上的 pnpm, 没有 pnpm 插件预装与 link 安装都会失败
+# (官方运行时内置的是 pnpm 11, 这里对齐大版本, 避免 lockfile 格式不兼容)
+RUN npm install -g pnpm@11 && pnpm --version
+
 COPY --chown=dsh:dsh bootstrap/ /opt/bootstrap/
 COPY --chown=dsh:dsh entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/bootstrap/*.sh /opt/entrypoint.sh
