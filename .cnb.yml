@@ -1,0 +1,45 @@
+# CNB 流水线: 国内构建 -> 推 CNB 制品库 -> SSH 部署腾讯云
+# registry: docker.cnb.cool (docs.cnb.cool/zh/artifact/docker.html)
+main:
+  push:
+    - services:
+        - docker
+      stages:
+        - name: build image
+          script: docker build -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest --build-arg DSH_VERSION=next .
+        - name: push image
+          script:
+            - docker login docker.cnb.cool -u cnb -p "$CNB_TOKEN"
+            - docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest
+        - name: mirror to github
+          image: alpine
+          environment:
+            GH_PAT:
+              from_secret: GH_PAT
+          script:
+            - apk add git > /dev/null 2>&1
+            - |
+              if [ -z "$GH_PAT" ]; then echo "secret GH_PAT 未配置, 跳过 GitHub 同步"; exit 0; fi
+              git clone --bare "https://cnb:$CNB_TOKEN@cnb.cool/ChenXu233/oh-my-dsh-pack.git" /tmp/mirror
+              cd /tmp/mirror
+              git push --mirror "https://ChenXu233:$GH_PAT@github.com/ChenXu233/oh-my-dsh-pack.git"
+
+        - name: deploy to tencent cloud
+          image: alpine
+          environment:
+            DEPLOY_KEY:
+              from_secret: DEPLOY_SSH_KEY
+            DEPLOY_HOST:
+              from_secret: DEPLOY_HOST
+          script:
+            - apk add openssh-client > /dev/null 2>&1
+            - |
+              if [ -z "$DEPLOY_KEY" ]; then echo "secret DEPLOY_SSH_KEY 未配置, 跳过自动部署 (构建/推送已完成)"; exit 0; fi
+              echo "$DEPLOY_KEY" > /tmp/k && chmod 600 /tmp/k
+              if [ -z "$DEPLOY_HOST" ]; then echo "DEPLOY_HOST 未设置, 跳过部署"; exit 0; fi
+              ssh -i /tmp/k -o StrictHostKeyChecking=accept-new "ubuntu@$DEPLOY_HOST" '
+                set -e
+                echo "$(cat ~/.cnb-token)" | sudo -S docker login docker.cnb.cool -u cnb --password-stdin < /dev/null 2>/dev/null || echo "$(cat ~/.cnb-token)" | sudo docker login docker.cnb.cool -u cnb --password-stdin
+                cd ~/harness-deploy && sudo docker compose pull && sudo docker compose up -d
+                sleep 5; sudo docker compose logs --tail=3 dsh | grep "dsh web:" || true
+              '

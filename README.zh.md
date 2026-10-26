@@ -1,0 +1,60 @@
+# oh-my-dsh-pack
+
+[English](README.md) | 简体中文
+
+> **ChenXu233's dsh pack** —— 我自己口味调校的 [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/deepseek-harness) Docker 部署包。
+>
+> **个人配置，非官方。** 开源出来首先方便我自己一键部署，也欢迎朋友拿去体验我优化好的 dsh。
+
+## 这是什么
+
+一个把 dsh web 跑进 Docker 的"全家桶"：镜像构建、流水线、部署脚本、私人插件预装清单，全部配置即代码。
+
+- **一条命令部署**：`docker compose up -d`，鉴权由 dsh 内置（启动 token → 签名 cookie），无需任何鉴权插件
+- **国内分钟级 CI**：CNB 云原生构建自动出镜像（`docker.cnb.cool/<you>/oh-my-dsh-pack`），推 GitHub 自动镜像
+- **数据全在卷里**：插件、会话、API Key、工作区都在 named volumes，升级镜像零丢失
+- **插件声明式预装**：`bootstrap/*.sh` 按序执行，冷启动也自动装回我的必装清单
+
+## 快速开始
+
+```bash
+git clone https://github.com/ChenXu233/oh-my-dsh-pack.git
+cd oh-my-dsh-pack
+sudo docker compose up -d
+sudo docker compose logs dsh | grep 'dsh web:'   # 复制带 token 的登录 URL
+```
+
+前置：Docker + Compose v2。首次启动会从 dsh 随附模板初始化 web profile，并执行 `bootstrap/` 下你的插件清单。
+
+## 目录
+
+| 路径 | 用途 |
+|---|---|
+| `Dockerfile` | node:22-slim + 全局 dsh，非 root，堆内存封顶 |
+| `entrypoint.sh` | bootstrap 插件预装 → 启动 dsh web |
+| `bootstrap/10-plugins.sh` | **编辑我**：私人必装插件清单 |
+| `docker-compose.yml` | 端口/卷/内存上限/健康检查 |
+| `.cnb.yml` | CNB 流水线：构建 → 制品库 → GitHub 镜像 → (可选)SSH 部署 |
+| `deploy/install.sh` | 服务器端一键部署/更新 |
+
+## 数据都在哪
+
+| 内容 | 位置 | 重建容器后 |
+|---|---|---|
+| 插件 / 会话 / API Key / 设置 | `dsh-home` 卷 | ✅ 保留 |
+| agent 工作区文件 | `dsh-workspace` 卷 | ✅ 保留 |
+| 终端进程 / 临时文件 | 容器层 | ❌ 重建即失 |
+
+注意：升级 dsh 大版本后，卷内旧插件可能因 `engines.dsh` 兼容范围被启动检查拦下，在网页插件管理器里更新或豁免即可。
+
+## 更新
+
+```bash
+git pull && sudo docker compose pull && sudo docker compose up -d
+```
+
+## 致谢与声明
+
+- 基于 [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)，dsh 的所有能力归其作者所有
+- 本仓库只包含部署编排与个人配置，**不含也不分发 dsh 源码**（镜像构建时从 npm 安装官方包）
+- 凭据（API Key 等）只存在你自己机器的卷里，本仓库不含任何密钥

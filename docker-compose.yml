@@ -1,0 +1,45 @@
+name: harness
+
+services:
+  dsh:
+    # 镜像由 GitHub Actions 构建发布, 服务器只拉取, 不在本机构建
+    # 镜像由 CNB 流水线构建并推送到 CNB 制品库
+    image: docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest
+    # 本地调试时才启用:
+    # build: .
+    container_name: harness-dsh
+    # 容器内必须绑定容器IP而非127.0.0.1, 否则 docker-proxy 转发不可达
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        for s in /opt/bootstrap/*.sh; do
+          [ -e "$s" ] || continue
+          echo "[bootstrap] >>> $(basename "$s")"
+          sh "$s" || echo "[bootstrap] WARN: $(basename "$s") failed"
+        done
+        exec dsh --profile web --no-open --host "$(hostname -i | awk '{print $1}')" --public-url https://harness.chenxu233.cn --trusted-host harness.chenxu233.cn
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3210:3080"   # 只绑宿主回环, 公网入口是 Caddy
+    volumes:
+      - dsh-home:/data/dsh-home
+      - dsh-workspace:/data/workspace
+    working_dir: /data/workspace
+    mem_limit: 2g
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "node -e \"fetch('http://'+require('os').networkInterfaces().eth0.find(i=>i.family==='IPv4').address+':3080/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+
+volumes:
+  dsh-home:
+  dsh-workspace:

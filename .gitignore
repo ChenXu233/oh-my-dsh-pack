@@ -1,0 +1,7 @@
+*.tar.gz
+.env
+*.token
+*token*
+*.key
+node_modules/
+.tmp*
