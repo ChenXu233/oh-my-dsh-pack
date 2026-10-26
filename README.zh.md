@@ -5,6 +5,8 @@
 > **ChenXu233's dsh pack** —— 我自己口味调校的 [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/deepseek-harness) Docker 部署包。
 >
 > **个人配置，非官方。** 开源出来首先方便我自己一键部署，也欢迎朋友拿去体验我优化好的 dsh。
+>
+> **主仓库在 CNB**（`cnb.cool/ChenXu233/oh-my-dsh-pack`），镜像在那里构建；GitHub 是由流水线自动同步的镜像，改动请往 CNB 提。
 
 ## 这是什么
 
@@ -36,6 +38,19 @@ sudo docker compose logs dsh | grep 'dsh web:'   # 复制带 token 的登录 URL
 | `docker-compose.yml` | 端口/卷/内存上限/健康检查 |
 | `.cnb.yml` | CNB 流水线：构建 → 制品库 → GitHub 镜像 → (可选)SSH 部署 |
 | `deploy/install.sh` | 服务器端一键部署/更新 |
+| `AGENT.md` | **给 agent 看的约定**：改动影响面、什么该进镜像什么不该 |
+| `bootstrap-dev/` + `docker-compose.dev.yml` | *作者本人专用*的免发布开发链路（见下） |
+
+## 插件怎么装（两条路，先选对）
+
+| 链路 | 用在哪 | 改代码要做什么 |
+|---|---|---|
+| **发布链路** | 所有人 | 在 `bootstrap/10-plugins.sh` 的 `PLUGINS` 里填 npm 包名；改代码要发版 + 重建镜像 |
+| **开发链路** | 只有插件作者本人 | `bootstrap-dev/` + `docker-compose.dev.yml`：源码挂进容器用 `link:` 装，改代码只同步产物 + 重启容器 |
+
+`bootstrap-dev/`、`docker-compose.dev.yml`、`scripts/sync-mesh.ps1` 是作者本人的开发脚手架。
+**你多半不需要它们**：要插件就改 `bootstrap/10-plugins.sh`，或启动后在网页插件管理器里装。
+详见 [AGENT.md](AGENT.md)。
 
 ## 数据都在哪
 
