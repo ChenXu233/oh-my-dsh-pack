@@ -48,7 +48,7 @@ sudo docker compose logs dsh | grep 'dsh web:'   # 复制带 token 的登录 URL
 | **发布链路** | 所有人 | 在 `bootstrap/10-plugins.sh` 的 `PLUGINS` 里填 npm 包名；改代码要发版 + 重建镜像 |
 | **开发链路** | 只有插件作者本人 | `bootstrap-dev/` + `docker-compose.dev.yml`：源码挂进容器用 `link:` 装，改代码只同步产物 + 重启容器 |
 
-`bootstrap-dev/`、`docker-compose.dev.yml`、`scripts/sync-mesh.ps1` 是作者本人的开发脚手架。
+`bootstrap-dev/`、`docker-compose.dev.yml`、`scripts/sync-plugin.ps1` 是作者本人的开发脚手架。
 **你多半不需要它们**：要插件就改 `bootstrap/10-plugins.sh`，或启动后在网页插件管理器里装。
 详见 [AGENT.md](AGENT.md)。
 

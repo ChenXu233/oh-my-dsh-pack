@@ -91,30 +91,48 @@ docker logs harness-dsh | grep '\[bootstrap\]'
 
 **适用场景**：你手上有插件源码，想改一行就看见效果，而不是每个版本发一次 npm 包。
 
-### 4.1 一次性准备
+### 4.0 目录约定：一个插件一个子目录
 
-1. 服务器上放源码目录（只放构建产物即可）：
+```
+/srv/dev-plugins/                  <- 宿主根目录（DSH_DEV_PLUGINS，挂进容器为 /opt/dev-plugins）
+  ├── dsh-workspace-mesh/          <- 每个子目录 = 一个完整可加载的包
+  │     ├── package.json           <- 必须有，name 决定安装后的包名
+  │     ├── cordis.patch.yml       <- 声明 dsh.bundle 时会被自动组合
+  │     └── lib/index.js           <- 必须已构建
+  └── dsh-another-plugin/
+```
+
+**不要把多个插件塞进同一个目录**：包靠 `package.json` 的 `name` 区分，混在一起装不上。
+容器启动时会遍历所有子目录，逐个 `link:` 安装；加插件只需要加一个目录。
+
+### 4.1 一次性准备 —— 以 dsh-workspace-mesh 为例
+
+1. 服务器上建根目录与插件目录：
    ```bash
-   sudo mkdir -p /srv/dsh-workspace-mesh && sudo chown -R ubuntu /srv/dsh-workspace-mesh
+   sudo mkdir -p /srv/dev-plugins/dsh-workspace-mesh
+   sudo chown -R ubuntu /srv/dev-plugins
    ```
-2. 用 dev 覆盖层启动（挂载源码 + dev 脚本）：
+2. 用 dev 覆盖层启动（挂载多插件根目录 + dev 脚本）：
    ```bash
    cd ~/harness-deploy
    sudo docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
    ```
-3. 容器启动时 `bootstrap-dev/20-link-plugins.sh` 会把 `/opt/mesh` 用 `link:` 规格装进 web profile。
-   验证：日志出现 `[dev] linked: /opt/mesh`，网页插件页出现该插件。
+3. 容器启动时 `bootstrap-dev/20-link-plugins.sh` 遍历 `/opt/dev-plugins/*/`，逐个装进 web profile。
+   验证：日志出现 `[dev] linked: dsh-workspace-mesh`，网页插件页出现该插件。
 
 ### 4.2 每轮迭代（约十几秒）
 
 ```bash
-# 本机
-cd E:/git/dsh-workspace-mesh && pnpm build
-pwsh -File E:/git/oh-my-dsh-pack/scripts/sync-mesh.ps1
+# 本机（-Plugin 指定子目录名；不给则从 package.json 的 name 推断）
+pwsh -File E:/git/oh-my-dsh-pack/scripts/sync-plugin.ps1 -Plugin dsh-workspace-mesh
 ```
 
-脚本做三件事：`scp` 构建产物 → 远端写入 `DSH_MESH_SRC` → 以 dev 覆盖层 `up -d` 并重启。
-插件代码改动需要重启 dsh 进程；只改配置在开启 HMR 时可热生效。
+脚本做四件事：`pnpm build` → `scp` 产物到 `/srv/dev-plugins/<插件>/` → 远端写入 `DSH_DEV_PLUGINS` →
+以 dev 覆盖层 `up -d` 并重启。插件代码改动需要重启 dsh 进程；只改配置在开启 HMR 时可热生效。
+
+**再加一个插件**：本地有另一个插件仓库时，
+`pwsh -File scripts/sync-plugin.ps1 -LocalRepo E:/git/dsh-another-plugin`，
+它会落到 `/srv/dev-plugins/dsh-another-plugin/`，与已有插件并存，互不覆盖。
 
 ### 4.3 为什么 `link:` 能生效
 

@@ -1,24 +1,30 @@
 # ============================================================================
 # 个人开发环境覆盖层 (可选, 必须显式 -f 才会生效)
 # ----------------------------------------------------------------------------
-# 用途: 把 dsh-workspace-mesh 的源码挂进容器, 用 link: 规格装进 web profile。
-#       这样改代码只需同步构建产物 + 重启容器, 不必每次发布一个 npm 版本。
+# 用途: 把【多个插件】的源码目录挂进容器, 用 link: 规格装进 web profile。
+#
+# 目录约定(重要):
+#   ${DSH_DEV_PLUGINS:-/srv/dev-plugins}/
+#     ├── dsh-workspace-mesh/    <- 一个插件一个子目录
+#     ├── dsh-another-plugin/
+#     └── ...
+#   每个子目录必须是一个可加载的包: 有 package.json, 且 lib/index.js 已构建。
+#   容器启动时 bootstrap-dev/20-link-plugins.sh 会遍历所有子目录逐个 link 安装。
+#
+# 不要把所有插件塞进同一个目录: 包之间靠 package.json 的 name 区分, 混在一起装不上。
 #
 # 这条链路只服务于"插件作者本人"的开发闭环:
 #   - 没有这份源码的部署, 行为与标准部署完全一致(这个文件不生效);
-#   - 别人请按自己的插件清单走 bootstrap/10-plugins.sh, 或直接在网页插件管理器里
-#     安装自己要的插件, 不要照抄这里的挂载。详见 AGENT.md。
+#   - 别人请按自己的插件清单走 bootstrap/10-plugins.sh, 或直接在网页插件管理器里装。
 #
 # 用法:
-#   DSH_MESH_SRC=/srv/dsh-workspace-mesh \
+#   DSH_DEV_PLUGINS=/srv/dev-plugins \
 #     docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-#
-# 宿主机路径用环境变量给出; 仓库里不出现任何具体主机地址。
 # ============================================================================
 services:
   dsh:
     volumes:
-      # 插件源码目录: 宿主机 -> 容器固定路径, bootstrap-dev 的脚本按此路径安装
-      - ${DSH_MESH_SRC:-/srv/dsh-workspace-mesh}:/opt/mesh:ro
+      # 插件源码根目录: 宿主机 -> 容器固定路径
+      - ${DSH_DEV_PLUGINS:-/srv/dev-plugins}:/opt/dev-plugins:ro
       # 个人开发用的 bootstrap 脚本: 标准部署不会挂载它
       - ./bootstrap-dev:/opt/dev:ro

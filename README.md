@@ -48,7 +48,7 @@ Requires Docker + Compose v2. On first start the web profile is initialized from
 | **Published** | everyone | list npm package names in `bootstrap/10-plugins.sh`; changing code means publishing a release and rebuilding the image |
 | **Dev loop** | the plugin author only | `bootstrap-dev/` + `docker-compose.dev.yml`: source is mounted into the container and installed with `link:`, so a change only needs the built output synced and a container restart |
 
-`bootstrap-dev/`, `docker-compose.dev.yml` and `scripts/sync-mesh.ps1` are the author's personal
+`bootstrap-dev/`, `docker-compose.dev.yml` and `scripts/sync-plugin.ps1` are the author's personal
 scaffolding. **You probably do not want them**: add your own package names to
 `bootstrap/10-plugins.sh`, or install plugins from the web plugin manager after startup.
 See [AGENT.md](AGENT.md).
