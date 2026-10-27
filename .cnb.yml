@@ -36,17 +36,7 @@ main:
               fi
 
               echo "$DEPLOY_KEY" > /tmp/k && chmod 600 /tmp/k
-              ssh -i /tmp/k -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 "ubuntu@$DEPLOY_HOST" '
-                set -e
-                cd ~/harness-deploy
-                echo "-- git pull (origin = CNB) --"
-                git pull --ff-only
-                echo "-- docker login --"
-                sudo -n docker login docker.cnb.cool -u cnb --password-stdin < ~/.cnb-token
-                echo "-- pull & up --"
-                sudo -n docker compose pull
-                sudo -n docker compose up -d
-                sudo -n docker compose ps
-                sleep 5
-                sudo -n docker compose logs --tail=5 dsh | grep "dsh web:" || true
-              '
+              # 服务器上这把 key 带 command= 强制项, 只能执行 ~/bin/dsh-deploy.sh,
+              # 所以这里不发远程命令; 强行发也会被忽略, 只跑那个脚本。
+              # 脚本内容见仓库 deploy/dsh-deploy.sh (同一份)。
+              ssh -i /tmp/k -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 "ubuntu@$DEPLOY_HOST"

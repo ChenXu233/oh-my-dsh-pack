@@ -13,19 +13,20 @@ services:
       - /bin/sh
       - -c
       - |
+        # 注意: compose 会插值 $VAR, 这里的 shell 变量必须写成 $$VAR 才不会被打空。
         set -e
         for s in /opt/bootstrap/*.sh; do
-          [ -e "$s" ] || continue
-          echo "[bootstrap] >>> $(basename "$s")"
-          sh "$s" || echo "[bootstrap] WARN: $(basename "$s") failed"
+          [ -e "$$s" ] || continue
+          echo "[bootstrap] >>> $$(basename "$$s")"
+          sh "$$s" || echo "[bootstrap] WARN: $$(basename "$$s") failed"
         done
         # 个人开发环境 (可选): /opt/dev 由 docker-compose.dev.yml 挂载, 标准部署不存在
         for s in /opt/dev/*.sh; do
-          [ -e "$s" ] || continue
-          echo "[dev] >>> $(basename "$s")"
-          sh "$s" || echo "[dev] WARN: $(basename "$s") failed"
+          [ -e "$$s" ] || continue
+          echo "[dev] >>> $$(basename "$$s")"
+          sh "$$s" || echo "[dev] WARN: $$(basename "$$s") failed"
         done
-        exec dsh --profile web --no-open --host "$(hostname -i | awk '{print $1}')" --public-url https://harness.chenxu233.cn --trusted-host harness.chenxu233.cn
+        exec dsh --profile web --no-open --host "$$(hostname -i | awk '{print $$1}')" --public-url https://harness.chenxu233.cn --trusted-host harness.chenxu233.cn
     restart: unless-stopped
     ports:
       - "127.0.0.1:3210:3080"   # 只绑宿主回环, 公网入口是 Caddy
