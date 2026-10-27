@@ -1,10 +1,15 @@
 # CNB 流水线: 构建镜像 -> 推 CNB 制品库 -> SSH 部署腾讯云
 # 权威源就是 CNB。GitHub 不参与: 不镜像、不部署, 避免和 CNB 竞争推送。
-# registry: docker.cnb.cool (docs.cnb.cool/zh/artifact/docker.html)
+#
+# 密钥来源: CNB 没有 GitLab 那种 from_secret, 敏感值必须放在【密钥仓库】,
+# 再用 imports 把该文件里的 key 注入成环境变量。见 docs.cnb.cool/zh/repo/secret.html
+# 注意: 下面这行 URL 里的 <secret-repo> 要换成你实际建的密钥仓库 slug。
 main:
   push:
     - services:
         - docker
+      imports:
+        - https://cnb.cool/ChenXu233/dsh-secrets/-/blob/main/deploy.yml
       stages:
         - name: build image
           script: docker build -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest --build-arg DSH_VERSION=next .
@@ -16,27 +21,20 @@ main:
 
         - name: deploy to tencent cloud
           image: alpine
-          environment:
-            DEPLOY_KEY:
-              from_secret: DEPLOY_SSH_KEY
-            DEPLOY_HOST:
-              from_secret: DEPLOY_HOST
           script:
             - apk add openssh-client > /dev/null 2>&1
             - |
-              # 缺变量 = 配置坏了, 直接失败。
-              # 以前的写法是 exit 0 "跳过", 流水线显示 success 但什么都没部署, 会骗人。
+              # 缺变量 = 配置坏了, 直接失败。绝不 exit 0 假装成功。
               missing=""
-              [ -z "$DEPLOY_KEY" ]  && missing="$missing DEPLOY_SSH_KEY"
-              [ -z "$DEPLOY_HOST" ] && missing="$missing DEPLOY_HOST"
+              [ -z "${DEPLOY_SSH_KEY:-}" ] && missing="$missing DEPLOY_SSH_KEY"
+              [ -z "${DEPLOY_HOST:-}" ]    && missing="$missing DEPLOY_HOST"
               if [ -n "$missing" ]; then
-                echo "ERROR 缺少流水线变量:$missing"
-                echo "去 CNB 仓库设置 -> 流水线 -> 环境变量/密钥 补上, 然后重跑本流水线"
+                echo "ERROR 缺少变量:$missing"
+                echo "检查密钥仓库里的 deploy.yml 是否含这两项, 以及 imports 的 URL 是否正确"
                 exit 1
               fi
 
-              echo "$DEPLOY_KEY" > /tmp/k && chmod 600 /tmp/k
-              # 服务器上这把 key 带 command= 强制项, 只能执行 ~/bin/dsh-deploy.sh,
-              # 所以这里不发远程命令; 强行发也会被忽略, 只跑那个脚本。
-              # 脚本内容见仓库 deploy/dsh-deploy.sh (同一份)。
+              printf '%s\n' "$DEPLOY_SSH_KEY" > /tmp/k && chmod 600 /tmp/k
+              # 服务器上这把 key 带 command= 强制项, 只能执行 ~/bin/dsh-deploy.sh;
+              # 所以这里不发远程命令, 发了也会被忽略。脚本同 repo 的 deploy/dsh-deploy.sh。
               ssh -i /tmp/k -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 "ubuntu@$DEPLOY_HOST"
