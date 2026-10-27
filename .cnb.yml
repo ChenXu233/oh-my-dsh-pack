@@ -3,13 +3,13 @@
 #
 # 密钥来源: CNB 没有 GitLab 那种 from_secret, 敏感值必须放在【密钥仓库】,
 # 再用 imports 把该文件里的 key 注入成环境变量。见 docs.cnb.cool/zh/repo/secret.html
-# 注意: 下面这行 URL 里的 <secret-repo> 要换成你实际建的密钥仓库 slug。
+# 密钥仓库: https://cnb.cool/ChenXu233/secrets , 文件 dsh-deploy.yml
 main:
   push:
     - services:
         - docker
       imports:
-        - https://cnb.cool/ChenXu233/dsh-secrets/-/blob/main/deploy.yml
+        - https://cnb.cool/ChenXu233/secrets/-/blob/main/dsh-deploy.yml
       stages:
         - name: build image
           script: docker build -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest --build-arg DSH_VERSION=next .
