@@ -1,11 +1,26 @@
-# CNB 流水线: 构建镜像 -> 推 CNB 制品库 -> SSH 部署腾讯云
-# 权威源就是 CNB。GitHub 不参与: 不镜像、不部署, 避免和 CNB 竞争推送。
+# CNB 流水线
 #
-# 密钥来源: CNB 没有 GitLab 那种 from_secret, 敏感值必须放在【密钥仓库】,
-# 再用 imports 把该文件里的 key 注入成环境变量。见 docs.cnb.cool/zh/repo/secret.html
-# 密钥仓库: https://cnb.cool/ChenXu233/secrets , 文件 dsh-deploy.yml
+# 触发策略(重要):
+#   - 推分支(main)  : 只做构建验证。不推镜像、不部署、不读取任何密钥。
+#   - 打 tag(v* 等) : 构建 + 推镜像(:latest 与 :<tag>) + SSH 部署到服务器。
+#
+# 也就是说: 日常 push 不会动生产环境, 只有打 tag 才会部署。
+# 权威源是 CNB; GitHub 不参与(不镜像、不部署), 避免两边竞争推送。
+# 密钥: CNB 没有 GitLab 的 from_secret, 敏感值放密钥仓库, 用 imports 注入。
+#       密钥仓库: https://cnb.cool/ChenXu233/secrets , 文件 dsh-deploy.yml
+#
+# 若希望 push 完全不触发任何流水线, 删掉下面 main.push 这一段即可。
+
 main:
   push:
+    - services:
+        - docker
+      stages:
+        - name: build image (verify only, not released)
+          script: docker build -t oh-my-dsh-pack:verify --build-arg DSH_VERSION=next .
+
+"v*":
+  tag_push:
     - services:
         - docker
       imports:
@@ -15,9 +30,14 @@ main:
           script: docker build -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest --build-arg DSH_VERSION=next .
 
         - name: push image
-          script:
-            - docker login docker.cnb.cool -u cnb -p "$CNB_TOKEN"
-            - docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest
+          script: |
+            docker login docker.cnb.cool -u cnb -p "$CNB_TOKEN"
+            docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest
+            # tag 名同时作为一个镜像 tag, 方便回滚到指定版本
+            TAG="${CNB_BRANCH:-unknown}"
+            docker tag docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest docker.cnb.cool/chenxu233/oh-my-dsh-pack:$TAG
+            docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:$TAG
+            echo "pushed: latest, $TAG"
 
         - name: deploy to tencent cloud
           image: alpine
@@ -30,11 +50,11 @@ main:
               [ -z "${DEPLOY_HOST:-}" ]    && missing="$missing DEPLOY_HOST"
               if [ -n "$missing" ]; then
                 echo "ERROR 缺少变量:$missing"
-                echo "检查密钥仓库里的 deploy.yml 是否含这两项, 以及 imports 的 URL 是否正确"
+                echo "检查密钥仓库 dsh-deploy.yml 是否含这两项, 以及 imports URL 是否正确"
                 exit 1
               fi
 
               printf '%s\n' "$DEPLOY_SSH_KEY" > /tmp/k && chmod 600 /tmp/k
-              # 服务器上这把 key 带 command= 强制项, 只能执行 ~/bin/dsh-deploy.sh;
-              # 所以这里不发远程命令, 发了也会被忽略。脚本同 repo 的 deploy/dsh-deploy.sh。
+              # 服务器上的 key 带 command= 强制项, 只能执行 ~/bin/dsh-deploy.sh
+              # (同 repo 的 deploy/dsh-deploy.sh); 这里不发远程命令, 发了也会被忽略。
               ssh -i /tmp/k -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 "ubuntu@$DEPLOY_HOST"

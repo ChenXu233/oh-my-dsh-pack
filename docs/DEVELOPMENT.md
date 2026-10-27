@@ -49,14 +49,25 @@ sudo docker compose logs dsh | grep 'dsh web:'   # 拿带 token 的登录 URL
 
 ---
 
-## 3. 日常：改代码 → 自动上线
+## 3. 日常：改代码 → 打 tag → 上线
+
+**日常 push 不会部署**，只做一次构建验证（证明 Dockerfile 还能构建）。
 
 ```bash
+# 1) 日常开发：随便推，不会动生产
 git add -A && git commit -m "..."
-git push cnb main        # 只推 CNB
+git push cnb main
+
+# 2) 要上线了：打 tag，才会构建 + 推镜像 + 部署
+git tag v0.1.0
+git push cnb v0.1.0
 ```
 
-流水线自动做三件事：构建镜像 → 推 `docker.cnb.cool` → SSH 上服务器执行 `~/bin/dsh-deploy.sh`。
+打 tag 触发的流水线做三件事：构建镜像（`:latest` 与 `:v0.1.0`）→ 推 `docker.cnb.cool` →
+SSH 上服务器执行 `~/bin/dsh-deploy.sh`（git pull → docker login → compose pull → up -d）。
+
+**为什么改成 tag 触发**：push 频率高，每次都动生产等于没有发布会话；tag 是一个明确的"要上线了"的信号，
+而且 tag 名同时成为镜像 tag，回滚时有据可查。
 
 **验证"真的部署了"（不要只看 success）：**
 
@@ -64,12 +75,14 @@ git push cnb main        # 只推 CNB
 # 流水线里 deploy 阶段的日志应当出现：
 #   [deploy] git pull ... / docker login / compose pull / compose up -d / ps
 # 服务器上核对
-git -C ~/harness-deploy log --oneline -1     # 应等于 CNB main
+git -C ~/harness-deploy log --oneline -1     # 应等于被打 tag 的那个 commit
 docker compose ps                            # 应 healthy
 docker logs harness-dsh | grep '\[bootstrap\]'
 ```
 
-> 历史坑：这个阶段曾经用 GitLab 的 `from_secret` 写法，CNB 不认识，变量恒为空，
+**回滚**：把 `docker-compose.yml` 的 image 指向 `:v0.1.0` 这种具体 tag，或重新打一个指向旧提交的 tag。
+
+> 历史坑：deploy 阶段曾经用 GitLab 的 `from_secret` 写法，CNB 不认识，变量恒为空，
 > 脚本 `exit 0` 跳过，流水线显示 success 但什么都没部署。现在缺变量会 `exit 1`。
 
 ---
