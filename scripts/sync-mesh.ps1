@@ -79,7 +79,10 @@ if (-not (Test-Path (Join-Path $LocalRepo 'lib/index.js'))) {
 $libDir = (Join-Path $LocalRepo 'lib') -replace '\\', '/'
 
 Write-Step "同步构建产物 -> ${SshHost}:$RemoteMeshDir"
-& ssh $SshHost "mkdir -p '$RemoteMeshDir' && rm -rf '$RemoteMeshDir/lib'" 2>&1 | Out-Host
+# /srv 这类目录通常要 root 建; 建完把属主给当前用户, 后面的 scp 才能写。
+# 用单引号 + -f, 免得 PowerShell 把远端的 $(id -u) 给展开了。
+$prep = 'sudo mkdir -p "{0}" && sudo rm -rf "{0}/lib" && sudo chown -R $(id -u):$(id -g) "{0}"' -f $RemoteMeshDir
+& ssh -t $SshHost $prep 2>&1 | Out-Host
 if ($LASTEXITCODE -ne 0) { throw "远端准备目录失败" }
 
 & scp -r $libDir "${SshHost}:$RemoteMeshDir/" 2>&1 | Out-Host
@@ -95,7 +98,7 @@ foreach ($file in @('package.json', 'cordis.patch.yml')) {
 Write-Step "远端: 写入 .env 并以 dev 覆盖层重启"
 $remote = @"
 set -e
-cd '$RemoteProjectDir'
+cd $RemoteProjectDir
 grep -q '^DSH_MESH_SRC=' .env 2>/dev/null || echo 'DSH_MESH_SRC=$RemoteMeshDir' >> .env
 COMPOSE='docker compose -f docker-compose.yml -f docker-compose.dev.yml'
 sudo $COMPOSE up -d

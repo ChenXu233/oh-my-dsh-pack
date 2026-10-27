@@ -1,4 +1,5 @@
-# CNB 流水线: 国内构建 -> 推 CNB 制品库 -> SSH 部署腾讯云
+# CNB 流水线: 构建镜像 -> 推 CNB 制品库 -> SSH 部署腾讯云
+# 权威源就是 CNB。GitHub 不参与: 不镜像、不部署, 避免和 CNB 竞争推送。
 # registry: docker.cnb.cool (docs.cnb.cool/zh/artifact/docker.html)
 main:
   push:
@@ -7,22 +8,11 @@ main:
       stages:
         - name: build image
           script: docker build -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest --build-arg DSH_VERSION=next .
+
         - name: push image
           script:
             - docker login docker.cnb.cool -u cnb -p "$CNB_TOKEN"
             - docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest
-        - name: mirror to github
-          image: alpine
-          environment:
-            GH_PAT:
-              from_secret: GH_PAT
-          script:
-            - apk add git > /dev/null 2>&1
-            - |
-              if [ -z "$GH_PAT" ]; then echo "secret GH_PAT 未配置, 跳过 GitHub 同步"; exit 0; fi
-              git clone --bare "https://cnb:$CNB_TOKEN@cnb.cool/ChenXu233/oh-my-dsh-pack.git" /tmp/mirror
-              cd /tmp/mirror
-              git push --mirror "https://ChenXu233:$GH_PAT@github.com/ChenXu233/oh-my-dsh-pack.git"
 
         - name: deploy to tencent cloud
           image: alpine
@@ -34,15 +24,29 @@ main:
           script:
             - apk add openssh-client > /dev/null 2>&1
             - |
-              if [ -z "$DEPLOY_KEY" ]; then echo "secret DEPLOY_SSH_KEY 未配置, 跳过自动部署 (构建/推送已完成)"; exit 0; fi
+              # 缺变量 = 配置坏了, 直接失败。
+              # 以前的写法是 exit 0 "跳过", 流水线显示 success 但什么都没部署, 会骗人。
+              missing=""
+              [ -z "$DEPLOY_KEY" ]  && missing="$missing DEPLOY_SSH_KEY"
+              [ -z "$DEPLOY_HOST" ] && missing="$missing DEPLOY_HOST"
+              if [ -n "$missing" ]; then
+                echo "ERROR 缺少流水线变量:$missing"
+                echo "去 CNB 仓库设置 -> 流水线 -> 环境变量/密钥 补上, 然后重跑本流水线"
+                exit 1
+              fi
+
               echo "$DEPLOY_KEY" > /tmp/k && chmod 600 /tmp/k
-              if [ -z "$DEPLOY_HOST" ]; then echo "DEPLOY_HOST 未设置, 跳过部署"; exit 0; fi
-              ssh -i /tmp/k -o StrictHostKeyChecking=accept-new "ubuntu@$DEPLOY_HOST" '
+              ssh -i /tmp/k -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 "ubuntu@$DEPLOY_HOST" '
                 set -e
-                echo "$(cat ~/.cnb-token)" | sudo -S docker login docker.cnb.cool -u cnb --password-stdin < /dev/null 2>/dev/null || echo "$(cat ~/.cnb-token)" | sudo docker login docker.cnb.cool -u cnb --password-stdin
                 cd ~/harness-deploy
-                # 仓库改动 (compose / bootstrap-dev / 脚本) 也要到服务器, 镜像只是其中一半
-                git pull --ff-only 2>/dev/null || echo "git pull 跳过 (本地有改动或非 git 仓库), 继续用现有文件"
-                sudo docker compose pull && sudo docker compose up -d
-                sleep 5; sudo docker compose logs --tail=3 dsh | grep "dsh web:" || true
+                echo "-- git pull (origin = CNB) --"
+                git pull --ff-only
+                echo "-- docker login --"
+                sudo -n docker login docker.cnb.cool -u cnb --password-stdin < ~/.cnb-token
+                echo "-- pull & up --"
+                sudo -n docker compose pull
+                sudo -n docker compose up -d
+                sudo -n docker compose ps
+                sleep 5
+                sudo -n docker compose logs --tail=5 dsh | grep "dsh web:" || true
               '
