@@ -79,10 +79,18 @@ if ($LASTEXITCODE -ne 0) { throw '远端准备目录失败' }
 Write-Step '同步产物'
 & scp -r $libDir "${SshHost}:$remoteDir/" 2>&1 | Out-Host
 if ($LASTEXITCODE -ne 0) { throw '同步 lib/ 失败' }
-foreach ($f in @('package.json', 'cordis.patch.yml')) {
+# 旧脚本把嵌套文件直接扔在插件根目录（client/client.js -> client.js）；
+# 顺手清掉那份历史残留，否则根目录会多出一个不会被加载的副本。
+& ssh -o BatchMode=yes $SshHost "sudo rm -f '$remoteDir/client.js'" 2>&1 | Out-Host
+foreach ($f in @('package.json', 'cordis.patch.yml', 'client/client.js')) {
   $src = Join-Path $LocalRepo $f
   if (-not (Test-Path $src)) { Write-Note "跳过缺少的 $f"; continue }
-  & scp $src "${SshHost}:$remoteDir/" 2>&1 | Out-Host
+  # 目标保留相对路径: <remoteDir>/client/client.js 必须落在 client/ 子目录里。
+  $dest = "$remoteDir/$f"
+  $destDir = Split-Path $dest -Parent
+  & ssh -o BatchMode=yes $SshHost "sudo mkdir -p '$destDir' && sudo chown `$(id -u):`$(id -g) '$destDir'" 2>&1 | Out-Host
+  if ($LASTEXITCODE -ne 0) { throw "远端准备 $f 目录失败" }
+  & scp $src "${SshHost}:$dest" 2>&1 | Out-Host
   if ($LASTEXITCODE -ne 0) { throw "同步 $f 失败" }
 }
 
