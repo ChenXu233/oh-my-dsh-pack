@@ -13,6 +13,8 @@
 #   旧版用 GitLab 的 from_secret 拿 token, CNB 不认, 变量恒为空,
 #   脚本每次都在 "未配置, 跳过" 处 exit 0 —— 镜像因此一直停在第一个提交。
 #   现在密钥放密钥仓库的 github-sync.yml: GITHUB_USERNAME / GITHUB_TOKEN。
+#   注意文件必须是 YAML (`GITHUB_USERNAME: "x"`); dotenv 的 KEY=VALUE 会被判成非法 YAML,
+#   报错是 "Failed to parse file ... Invalid YAML content", 而且发生在插件启动之前。
 #
 # 密钥: CNB 没有 from_secret, 敏感值放密钥仓库用 imports 注入。
 #       密钥仓库: https://cnb.cool/ChenXu233/secrets
