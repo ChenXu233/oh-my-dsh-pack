@@ -1,23 +1,46 @@
 # CNB 流水线
 #
 # 触发策略(重要):
-#   - 推分支(main)  : 只做构建验证。不推镜像、不部署、不读取任何密钥。
-#   - 打 tag(v* 等) : 构建 + 推镜像(:latest 与 :<tag>) + SSH 部署到服务器。
+#   - 推分支(main)  : 构建验证 + 同步镜像到 GitHub。不推镜像、不部署。
+#   - 打 tag(v* 等) : 构建 + 推镜像(:latest/:slim 与 :<tag>/:<tag>-slim) + 同步 tag + SSH 部署。
 #
-# 也就是说: 日常 push 不会动生产环境, 只有打 tag 才会部署。
-# 权威源是 CNB; GitHub 不参与(不镜像、不部署), 避免两边竞争推送。
-# 密钥: CNB 没有 GitLab 的 from_secret, 敏感值放密钥仓库, 用 imports 注入。
-#       密钥仓库: https://cnb.cool/ChenXu233/secrets , 文件 dsh-deploy.yml
+# 镜像分两档(见 Dockerfile / docs/PLANS.md):
+#   :latest  = capable  full / harness   (带 Python + LibreOffice + 中文字体)
+#   :slim    = slim     mini / chat / coder
+# 两档用同一个 Dockerfile, 只是 --target 不同。
 #
-# 若希望 push 完全不触发任何流水线, 删掉下面 main.push 这一段即可。
+# GitHub 镜像: 用官方插件 tencentcom/git-sync 推送。
+#   旧版用 GitLab 的 from_secret 拿 token, CNB 不认, 变量恒为空,
+#   脚本每次都在 "未配置, 跳过" 处 exit 0 —— 镜像因此一直停在第一个提交。
+#   现在密钥放密钥仓库的 github-sync.yml: GITHUB_USERNAME / GITHUB_TOKEN。
+#
+# 密钥: CNB 没有 from_secret, 敏感值放密钥仓库用 imports 注入。
+#       密钥仓库: https://cnb.cool/ChenXu233/secrets
 
 main:
   push:
     - services:
         - docker
       stages:
+        # 只引用这个文件: 里面只有同步用的 GITHUB_USERNAME / GITHUB_TOKEN,
+        # 不含部署凭据。push 阶段仍然拿不到 SSH 密钥。
+        - name: sync to github (mirror)
+          imports: https://cnb.cool/ChenXu233/secrets/-/blob/main/github-sync.yml
+          image: tencentcom/git-sync
+          settings:
+            target_url: https://github.com/ChenXu233/oh-my-dsh-pack.git
+            auth_type: https
+            username: "${GITHUB_USERNAME}"
+            password: "${GITHUB_TOKEN}"
+            branch: main
+            push_tags: true
+
         - name: build image (verify only, not released)
-          script: docker build -t oh-my-dsh-pack:verify --build-arg DSH_VERSION=next .
+          script: |
+            docker build --target slim \
+              -t oh-my-dsh-pack:verify-slim --build-arg DSH_VERSION=next .
+            docker build --target capable \
+              -t oh-my-dsh-pack:verify-capable --build-arg DSH_VERSION=next .
 
 "v*":
   tag_push:
@@ -27,17 +50,34 @@ main:
         - https://cnb.cool/ChenXu233/secrets/-/blob/main/dsh-deploy.yml
       stages:
         - name: build image
-          script: docker build -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest --build-arg DSH_VERSION=next .
+          script: |
+            docker build --target capable -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest --build-arg DSH_VERSION=next .
+            docker build --target slim -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:slim --build-arg DSH_VERSION=next .
 
         - name: push image
           script: |
             docker login docker.cnb.cool -u cnb -p "$CNB_TOKEN"
             docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest
-            # tag 名同时作为一个镜像 tag, 方便回滚到指定版本
+            docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:slim
+            # tag 名同时作为镜像 tag, 方便回滚到指定版本
             TAG="${CNB_BRANCH:-unknown}"
             docker tag docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest docker.cnb.cool/chenxu233/oh-my-dsh-pack:$TAG
+            docker tag docker.cnb.cool/chenxu233/oh-my-dsh-pack:slim   docker.cnb.cool/chenxu233/oh-my-dsh-pack:$TAG-slim
             docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:$TAG
-            echo "pushed: latest, $TAG"
+            docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:$TAG-slim
+            echo "pushed: latest, slim, $TAG, $TAG-slim"
+
+        # tag 也要同步, 否则 GitHub 上没有可回滚的版本点
+        - name: sync tag to github
+          imports: https://cnb.cool/ChenXu233/secrets/-/blob/main/github-sync.yml
+          image: tencentcom/git-sync
+          settings:
+            target_url: https://github.com/ChenXu233/oh-my-dsh-pack.git
+            auth_type: https
+            username: "${GITHUB_USERNAME}"
+            password: "${GITHUB_TOKEN}"
+            branch: main
+            push_tags: true
 
         - name: deploy to tencent cloud
           image: alpine

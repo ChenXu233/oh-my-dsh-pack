@@ -15,26 +15,50 @@ A "batteries-included" kit that runs the dsh web GUI in Docker: image build, CI 
 - **One-command deploy**: `docker compose up -d`. Auth is built into dsh (launch token → signed cookie), no auth plugin needed
 - **Minute-level CI in China**: CNB cloud build publishes images (`docker.cnb.cool/<you>/oh-my-dsh-pack`) and mirrors the repo to GitHub automatically
 - **All state in volumes**: plugins, sessions, API keys, and workspaces live in named volumes — image upgrades lose nothing
-- **Declarative plugin bootstrap**: `bootstrap/*.sh` runs in order on cold start, reinstalling my plugin list automatically
+- **Pick an install plan**: one folder per plan under `plans/` decides what gets installed and how dsh boots — full / minimal / chat / capability-complete / headless coder (see [docs/PLANS.md](docs/PLANS.md))
 
 ## Quick start
 
 ```bash
 git clone https://github.com/ChenXu233/oh-my-dsh-pack.git
 cd oh-my-dsh-pack
-sudo docker compose up -d
+sudo ./scripts/up.sh            # full by default; also mini / chat / harness
 sudo docker compose logs dsh | grep 'dsh web:'   # copy the tokenized login URL
 ```
 
-Requires Docker + Compose v2. On first start the web profile is initialized from the bundled dsh template, then everything under `bootstrap/` runs.
+Requires Docker + Compose v2. On first start the profile is initialized from the bundled dsh template, then the selected plan installs its plugins and boots.
+
+## Pick a plan
+
+| Plan | What you get | Image |
+|---|---|---|
+| `full` | my complete tuned setup (default) | capable |
+| `mini` | dsh itself, no preinstalled plugins | slim |
+| `chat` | open-and-chat: memory, thinking tiers, rich text, images, notifications | slim |
+| `harness` | subscription-grade output self-hosted: docs / sheets / PPT / web research / scheduled tasks, with your own models and quota | capable |
+| `coder` | headless coder: one task in, result on stdout | slim |
+
+```bash
+sudo ./scripts/up.sh                 # full
+sudo ./scripts/up.sh mini
+sudo ./scripts/up.sh harness
+sudo ./scripts/up.sh coder "fix the failing tests"
+```
+
+`capable` adds Python + LibreOffice + CJK fonts for documents and decks; `slim` is enough for chat.
+
+On your own domain, set `DSH_PUBLIC_URL` / `DSH_TRUSTED_HOST` in `docker-compose.yml` (or the environment).
+Details in [docs/PLANS.md](docs/PLANS.md).
 
 ## Layout
 
 | Path | Purpose |
 |---|---|
 | `Dockerfile` | node:22-slim + global dsh, non-root, capped heap |
-| `entrypoint.sh` | bootstrap plugin pre-install → start dsh web |
-| `bootstrap/10-plugins.sh` | **edit me**: your personal must-have plugin list |
+| `entrypoint.sh` | run bootstrap hooks → hand off to `scripts/plan-boot.sh` |
+| `plans/<plan>/` | **edit me**: plan definition (`plan.env`) + plugin list (`plugins.txt`) |
+| `scripts/up.sh` | boot one plan (headless plans run a task directly) |
+| `docs/PLANS.md` | the five plans, what switching costs, how to add one |
 | `docker-compose.yml` | ports / volumes / memory cap / healthcheck |
 | `.cnb.yml` | CNB pipeline: build → artifact registry → GitHub mirror → (optional) SSH deploy |
 | `deploy/install.sh` | one-shot server deploy/update |
@@ -45,12 +69,12 @@ Requires Docker + Compose v2. On first start the web profile is initialized from
 
 | Lane | Who it is for | What a code change costs |
 |---|---|---|
-| **Published** | everyone | list npm package names in `bootstrap/10-plugins.sh`; changing code means publishing a release and rebuilding the image |
+| **Published** | everyone | list npm package names in `plans/<plan>/plugins.txt`; changing code means publishing a release and rebuilding the image |
 | **Dev loop** | the plugin author only | `bootstrap-dev/` + `docker-compose.dev.yml`: source is mounted into the container and installed with `link:`, so a change only needs the built output synced and a container restart |
 
 `bootstrap-dev/`, `docker-compose.dev.yml` and `scripts/sync-plugin.ps1` are the author's personal
 scaffolding. **You probably do not want them**: add your own package names to
-`bootstrap/10-plugins.sh`, or install plugins from the web plugin manager after startup.
+`plans/<plan>/plugins.txt`, or install plugins from the web plugin manager after startup.
 See [AGENT.md](AGENT.md).
 
 ## Where your data lives

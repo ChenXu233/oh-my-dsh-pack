@@ -1,0 +1,21 @@
+# harness 方案的预装插件清单
+# ---------------------------------------------------------------------------
+# 目标：订阅版能产出的东西，自己机器上也能产出。
+# 文档 / 表格 / PPT 不在这里——它们由 dsh 自带的 office 系列技能提供，
+# 但需要 capable 镜像里的 python 库 + LibreOffice + 中文字体，见 plan.env。
+# ---------------------------------------------------------------------------
+dsh-image-gen                      # 图片生成
+@tonydua/dsh-web-search-exa        # 联网搜索（深度研究的入口）
+dsh-builtin-browser                # 浏览器抓取 / 页面操作
+@furongjun1999/dsh-memory          # 长期记忆
+@nanmicoder/dsh-agent-teams        # 多 agent 并行做长任务
+@changfenhuang/dsh-genui           # 结果渲染成卡片/表格/图
+@linxin666/dsh-client-ui-task-board # 定时任务 / 任务看板
+superpowers-dsh                    # 技能库（写作、计划、诊断这些流程）
+dsh-perf-patch                     # 长上下文下的性能补丁
+
+# --- 预留位 ---------------------------------------------------------------
+# 视频生成：插件侧生态已经有了，镜像里 ffmpeg 默认不装。
+# 启用方式：docker build --build-arg INSTALL_FFMPEG=1，然后在这里加对应的
+# 视频 provider 插件。现在不做，位置留着。
+# dsh-video-gen

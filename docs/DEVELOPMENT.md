@@ -12,13 +12,13 @@
 | 镜像层 | `Dockerfile` | node:22-slim + 全局 dsh + pnpm；改它必须重建镜像 |
 | 编排层 | `docker-compose.yml` | 卷、端口、容器启动命令（bootstrap 引导） |
 | 流水线层 | `.cnb.yml` | push → 构建镜像 → 推制品库 → SSH 部署到服务器 |
-| 插件层 | `bootstrap/`、`bootstrap-dev/` | 预装插件：前者装发布物，后者装源码 |
+| 方案层 | `plans/`、`bootstrap/`、`bootstrap-dev/` | 装什么、怎么起：`plans/` 是方案清单，`bootstrap/` 是镜像内初始化，`bootstrap-dev/` 是源码 link |
 
 **两条链路，别混用：**
 
 | 链路 | 用在哪 | 改代码要做什么 | 需要重建镜像 |
 |---|---|---|---|
-| 发布链路 | 所有人 | 改 `bootstrap/10-plugins.sh` 的包名 | 是 |
+| 发布链路 | 所有人 | 改 `plans/<方案>/plugins.txt` 的包名 | 是 |
 | 开发链路 | 只给插件作者 | 同步构建产物 + 重启容器 | 否 |
 
 判定口诀：**在 `/opt/bootstrap` 里的跟镜像走，在 `/opt/dev` 里的跟仓库走。**
@@ -45,7 +45,8 @@ sudo docker compose up -d
 sudo docker compose logs dsh | grep 'dsh web:'   # 拿带 token 的登录 URL
 ```
 
-首次启动会从 dsh 自带模板初始化 web profile，然后跑 `bootstrap/*.sh`。
+首次启动会从 dsh 自带模板初始化 profile，然后 `scripts/plan-boot.sh` 按 `DSH_PLAN` 装插件并启动。
+方案选型、换方案影响、加方案步骤见 [PLANS.md](PLANS.md)。
 
 ---
 
@@ -245,4 +246,4 @@ ssh -i ~/.ssh/cnb_deploy ubuntu@<服务器地址>
 
 - **不再用 GitHub 部署**。避免和 CNB 竞争推送；GitHub 侧的历史仓库（harness-deploy）已不存在。
 - **不在仓库里放密钥**。密钥只进 CNB 密钥仓库。
-- **不让 `bootstrap/` 承担开发迭代**。它进镜像，改一次就要重建一次。
+- **不让 `plans/`、`bootstrap/` 承担开发迭代**。它们进镜像，改一次就要重建一次。

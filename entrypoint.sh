@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-# 内置 web profile 首次启动会从随附模板自动初始化, 无需手动 seed
+# 容器内自带的初始化脚本(按序执行, 存在才跑; 插件清单已移到 plans/ 里)
 for s in /opt/bootstrap/*.sh; do
   [ -e "$s" ] || continue
   echo "[bootstrap] >>> $(basename "$s")"
@@ -15,4 +15,4 @@ for s in /opt/dev/*.sh; do
   sh "$s" || echo "[dev] WARN: $(basename "$s") failed (continuing)"
 done
 
-exec dsh --profile web --no-open --host 127.0.0.1 --public-url https://harness.chenxu233.cn --trusted-host harness.chenxu233.cn "$@"
+exec /opt/scripts/plan-boot.sh "$@"

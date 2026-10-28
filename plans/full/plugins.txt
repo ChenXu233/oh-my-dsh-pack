@@ -1,0 +1,40 @@
+# full 方案的预装插件清单
+# ---------------------------------------------------------------------------
+# 每行一个 spec，交给 `dsh plugin --profile <profile> add`；
+# 支持 npm 包名、github:owner/repo#sha、link:/abs/path。
+# '#' 开头是注释；行尾注释要空一格写 '#'。
+#
+# 这份清单是从作者本机 ~/.dsh/profiles/desktop 的 dependencies 抄过来的，
+# 也就是"全量风味"的真实来源。桌面端专属的几个(client-ui / 宠物 / 侧栏)
+# 在 web profile 下是否都成立还没逐一验证——失败的会 WARN 继续，不影响启动。
+# ---------------------------------------------------------------------------
+@changfenhuang/dsh-genui 0.14.0
+@copylee/dsh-computer-use 0.8.0
+@furongjun1999/dsh-memory 0.9.13
+@hytime/dsh-thinking-effort 0.3.11
+@linxin666/dsh-client-ui-git-graph 0.4.8
+@linxin666/dsh-client-ui-skill-explorer 0.4.8
+@linxin666/dsh-client-ui-task-board 0.4.8
+@michengai/dsh-archive-manager 1.1.12
+@michengai/dsh-btw 1.0.8
+@nanmicoder/dsh-agent-teams 0.1.26
+@tonydua/dsh-web-search-exa 0.2.3
+@wxg-prc-cpg/browser-skill-dsh-plugin 0.3.3
+@yunmiao/studymate 2.0.3
+dsh-better-sidebar 0.28.0
+dsh-builtin-browser 0.4.15
+dsh-config-manager 0.1.83
+dsh-context 0.75.1
+dsh-gemini-tool-schema 0.3.0
+dsh-image-gen 0.9.2
+dsh-mcp-connector 0.2.79
+dsh-notify-me 1.14.2
+dsh-ops 0.4.1
+github:ChenXu233/dsh-perf-patch#96d7dcb1d18b25262cb0294175f154e7232eb886  # dsh-perf-patch
+dsh-pet 0.3.8
+dsh-reasoning-tiers 0.3.0
+dsh-rewind-plugin 0.19.0
+github:homily707/dsh-session-header  # dsh-session-header
+dsh-whale-widget 0.4.2
+dshmarket 1.70.2
+github:LayneChai/superpowers-dsh#426e7c4e727084374616ebd942a7e69567036d3a  # superpowers-dsh

@@ -7,8 +7,8 @@
 #
 # 这个目录只有在用 docker-compose.dev.yml 启动时才会被挂载, 标准部署不会执行到这里。
 #
-# 与 bootstrap/10-plugins.sh 的分工:
-#   bootstrap/10-plugins.sh  装"发布物"(npm 包), 改代码必须发版; 它在镜像里,
+# 与 plans/<方案>/plugins.txt 的分工:
+#   plans/<方案>/plugins.txt 装"发布物"(npm 包), 改代码必须发版; 它在镜像里,
 #                            所以每次改动都要重建镜像。
 #   bootstrap-dev/20-...sh   装"源码"(link: 依赖), 指向宿主机挂进来的目录,
 #                            改代码只需同步构建产物 + 重启容器, 不必发版。
