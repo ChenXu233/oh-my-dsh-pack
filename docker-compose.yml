@@ -6,6 +6,14 @@ services:
     #   :latest = capable (full / harness)   :slim = 只有 dsh 本体 (mini / chat / coder)
     # 用 ./scripts/up.sh <方案> 启动时会自动选对 tag
     image: ${DSH_IMAGE:-docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest}
+    # 本地构建入口: ./scripts/up.sh --build <方案> (CI 仍用 docker build --target, 因为两档要各自打 tag)
+    build:
+      context: .
+      target: ${DSH_TARGET:-capable}
+      args:
+        DSH_VERSION: ${DSH_VERSION:-next}
+        INSTALL_FFMPEG: ${INSTALL_FFMPEG:-0}
+        INSTALL_CHROMIUM: ${INSTALL_CHROMIUM:-0}
     container_name: harness-dsh
 
     # 启动逻辑只在镜像里一份: /opt/entrypoint.sh -> /opt/scripts/plan-boot.sh

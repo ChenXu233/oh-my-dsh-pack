@@ -14,6 +14,14 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+BUILD_FLAG=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --build) BUILD_FLAG="--build"; shift ;;
+    *) break ;;
+  esac
+done
+
 PLAN="${1:-full}"
 shift || true
 
@@ -45,4 +53,4 @@ if [ "${PLAN_ENTRY:-web}" = "headless" ]; then
   exec docker compose run --rm dsh "$@"
 fi
 
-exec docker compose up -d "$@"
+exec docker compose up -d $BUILD_FLAG "$@"
