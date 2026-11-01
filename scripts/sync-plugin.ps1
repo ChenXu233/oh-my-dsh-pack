@@ -67,9 +67,10 @@ if (-not $SkipBuild) {
   } finally { Pop-Location }
 }
 
-if (-not (Test-Path (Join-Path $LocalRepo 'lib/index.js'))) { throw '没有 lib/index.js, 先构建' }
-
+# 只要求产物目录存在: 入口叫什么由包自己的 package.json 决定(多入口包没有 lib/index.js),
+# 能不能加载是容器里 20-link-plugins.sh 的判断, 这里不该替它猜。
 $libDir = (Join-Path $LocalRepo 'lib') -replace '\\', '/'
+if (-not (Test-Path $libDir)) { throw "没有产物目录 $libDir, 先构建(包输出到别处就改这里的 libDir)" }
 
 Write-Step '准备远端目录'
 $prep = 'sudo mkdir -p "{0}" && sudo rm -rf "{0}/lib" && sudo chown -R $(id -u):$(id -g) "{1}"' -f $remoteDir, $RemotePluginsDir

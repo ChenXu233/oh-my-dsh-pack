@@ -11,7 +11,8 @@
 # 目录约定: 一个插件一个子目录
 #   ${DSH_DEV_PLUGINS:-/srv/dev-plugins}/<插件>/
 #     ├── package.json
-#     └── lib/index.js   （先在该插件仓库里构建）
+#     └── 入口文件        （package.json 的 exports["."] / main 指向的那个，先构建）
+#   注意: link: 不会给被链接目录装依赖 —— 有 dependencies 的包请用 pnpm pack + tgz 安装。
 #
 # 用法:
 #   ./scripts/up.sh dev

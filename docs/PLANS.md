@@ -39,6 +39,17 @@ plans/<方向>/
 `name@version`（**不要写空格**，`name version` 会变成非法包名）、git 写
 `github:owner/repo#sha`、本地源码写 `link:/abs/path`。装失败只 WARN，不阻断启动。
 
+`link:` 有个硬边界：**pnpm 只建符号链接，不会给被链接的目录装依赖**。被链接的包在运行时
+`require` 自己的 dependency 会 `MODULE_NOT_FOUND`，而且报错发生在加载插件时，看上去像
+插件本身坏了。所以有 `dependencies` 的包不要走 `link:`，改成两行：
+
+```bash
+pnpm pack                                                       # 在该插件仓库里
+dsh plugin --profile web add /abs/path/<包名>-<版本>.tgz          # 在开发容器里
+```
+
+tgz 一次改动要重打一次，但换来的是依赖真的被装上、和发布链路一致。
+
 ## 启动链路
 
 ```

@@ -70,7 +70,7 @@ Details in [docs/PLANS.md](docs/PLANS.md).
 | Lane | Who it is for | What a code change costs |
 |---|---|---|
 | **Published** | everyone | list npm package names in `plans/<direction>/plugins.txt`; the list is mounted, so it takes a `git pull` + restart, not an image rebuild. Changing the plugin's own code still means publishing a release |
-| **Dev instance** | the plugin author only | `./scripts/up.sh dev` + `bootstrap-dev/`: source is mounted into a blank dsh and installed with `link:`, so a change only needs the built output synced and a restart |
+| **Dev instance** | the plugin author only | `./scripts/up.sh dev` + `bootstrap-dev/`: source is mounted into a blank dsh and installed with `link:`, so a change only needs the built output synced and a restart (the package must have no runtime dependencies; otherwise `pnpm pack` and install the tgz) |
 
 `bootstrap-dev/`, `docker-compose.dev.yml` and `scripts/sync-plugin.ps1` are the author's personal
 scaffolding. **You probably do not want them**: add your own package names to

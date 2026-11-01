@@ -69,7 +69,7 @@ sudo ./scripts/up.sh harness
 | 链路 | 用在哪 | 改代码要做什么 |
 |---|---|---|
 | **发布链路** | 所有人 | 在 `plans/<方向>/plugins.txt` 里填 npm 包名；清单是挂载的，改完 git pull + 重启即可，不用重建镜像。插件自己的代码改动仍要发版 |
-| **开发链路** | 只有插件作者本人 | `./scripts/up.sh dev` + `bootstrap-dev/`：源码挂进空白 dsh 用 `link:` 装，改代码只同步产物 + 重启 |
+| **开发链路** | 只有插件作者本人 | `./scripts/up.sh dev` + `bootstrap-dev/`：源码挂进空白 dsh 用 `link:` 装，改代码只同步产物 + 重启（该包必须零运行时依赖；有依赖的请 `pnpm pack` 后用 tgz 装） |
 
 `bootstrap-dev/`、`docker-compose.dev.yml`、`scripts/sync-plugin.ps1` 是作者本人的开发脚手架。
 **你多半不需要它们**：要插件就改 `plans/<方向>/plugins.txt`，或启动后在网页插件管理器里装。

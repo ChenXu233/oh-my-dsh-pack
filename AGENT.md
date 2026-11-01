@@ -13,7 +13,7 @@
 | `deploy/install.sh` | 服务器端手工一键部署/更新 | 手工上线 |
 | [docs/PLANS.md](docs/PLANS.md) | **方向矩阵**: full/chat/harness/dev、加方向、切方向 | 改方向 / 加方向 |
 | `plans/<方向>/plan.env` + `plugins.txt` | 方向 = 数据: 环境要求、profile、入口、插件清单 | 改预装插件 |
-| `bootstrap-dev/20-link-plugins.sh` | 开发实例: 遍历 `/opt/dev-plugins/<插件>/` 逐个 `link:` | 开发插件 |
+| `bootstrap-dev/20-link-plugins.sh` | 开发实例: 遍历 `/opt/dev-plugins/<插件>/` 逐个 `link:`(仅零运行时依赖的包) | 开发插件 |
 | `docker-compose.yml` | 生产实例: 端口/卷/内存/健康检查 + 挂载 plans | 改生产编排 |
 | `docker-compose.dev.yml` | 开发实例: 独立 project/卷/端口 + 挂源码 | 改开发编排 |
 | `scripts/up.sh` | 选方向启动 / 起开发实例 | 启动 |
@@ -79,10 +79,13 @@ GitHub 是流水线用 `tencentcom/git-sync` 推过去的镜像, 手工往 GitHu
   ├── dsh-workspace-mesh/         <- 每个子目录是一个完整可加载的包
   │     ├── package.json          <- 必须有; name 决定装成什么
   │     ├── cordis.patch.yml      <- 有 dsh.bundle 时自动被组合
-  │     └── lib/index.js          <- 必须已构建
+  │     └── <入口文件>            <- 必须已构建; 按 package.json 的 exports["."] / main 解析, 不强制叫 lib/index.js
   └── dsh-another-plugin/
 ```
 
+- **link 只适用于零运行时依赖的包**: pnpm 的 `link:` 只建符号链接, **不会给被链接的目录装依赖**,
+  被链接的包在运行时 require 自己的 dependency 会 `MODULE_NOT_FOUND`。有 `dependencies` 的包先
+  `pnpm pack`, 再用 `dsh plugin --profile web add /abs/path/<包>-<版本>.tgz` 装(同样不用发版)。
 - `./scripts/up.sh dev` 起开发实例; `scripts/sync-plugin.ps1 -Plugin <目录名>` 同步并重启。
 - 开发实例失败不自动拉起(`restart: "no"`), 便于看日志。
 - 不要把开发实例的挂载/脚本挪进生产栈; 使用者没有源码, 他们改 `plans/<方向>/plugins.txt`
