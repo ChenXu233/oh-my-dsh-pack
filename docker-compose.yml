@@ -3,7 +3,7 @@ name: harness
 services:
   dsh:
     # 镜像只装环境, 分两档:
-    #   :latest = capable (full / harness / dev)   :slim = base (chat)
+    #   :latest = capable (full / harness)   :slim = base (chat / dev)
     # ./scripts/up.sh <方向> 会按 PLAN_ENV 选好 tag 并写进 .env
     image: ${DSH_IMAGE:-docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest}
     # 本地构建入口: ./scripts/up.sh --build <方向> (CI 用 docker build --target)

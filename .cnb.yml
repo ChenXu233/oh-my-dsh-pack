@@ -5,7 +5,8 @@
 #   - 打 tag(v* 等) : 构建 + 推镜像(:latest/:slim 与 :<tag>/:<tag>-slim) + 同步 tag + SSH 部署。
 #
 # 镜像分两档环境(见 Dockerfile / docs/PLANS.md):
-#   :latest  = capable  full / harness / dev  (带 Python + LibreOffice + 中文字体)
+#   :latest  = capable  full / harness         (带 Python + LibreOffice + 中文字体)
+#   dev 方向默认走 base → :slim; 插件真需要系统依赖时才改成 capable
 #   :slim    = slim     chat                  (只有 node + dsh + pnpm + git)
 # 两档用同一个 Dockerfile, 只是 --target 不同; 方向(plans/)挂载, 不进镜像。
 #

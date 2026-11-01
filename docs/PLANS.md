@@ -10,7 +10,7 @@
 | `full` | capable | `:latest` | web | web | 30（作者口味） | 生产（默认） |
 | `chat` | base | `:slim` | web | web | 待选 | 按需 |
 | `harness` | capable | `:latest` | web | web | 待选 | 按需 |
-| `dev` | capable | `:latest` | web | web | 0（空白） | 开发实例 |
+| `dev` | base | `:slim` | web | web | 0（空白） | 开发实例 |
 
 - `full` 是默认方向：`DSH_PLAN` 不设时用它。
 - `chat` / `harness` 的清单先留空，选好插件后写进 `plugins.txt` 即可，不用重建镜像。

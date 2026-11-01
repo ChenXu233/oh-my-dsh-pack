@@ -60,7 +60,10 @@ GitHub 是流水线用 `tencentcom/git-sync` 推过去的镜像, 手工往 GitHu
 | 状态 | named volumes | 不动 |
 
 - **镜像只装环境**: 方向清单不烤进镜像(`COPY plans/` 已删); 改清单不用重建。
-- **开发实例是第二个 compose 栈**, 不是第二个镜像: project `harness-dev`、卷 `dsh-dev-*`、端口 3211, 与生产同档 capable。
+- **开发实例是第二个 compose 栈**, 不是第二个镜像: project `harness-dev`、卷 `dsh-dev-*`、端口 3211。
+- **开发实例默认用 base 档(`:slim`)**: 迭代要快, 大多数插件用不到 LibreOffice/Python/CJK。
+  某个插件确实需要系统依赖时改 `plans/dev/plan.env` 的 `PLAN_ENV`, 并写下是哪个插件要的 ——
+  那是「环境变了」, 该走重建镜像那条路。
 - **方向选择写在 `.env`**(`DSH_PLAN` / `DSH_IMAGE`): `up.sh` 写, deploy 的 `docker compose up -d` 读;
   否则会打回默认 `full` / `:latest`。
 - 判定口诀: **环境进镜像, 方向进挂载, 状态进卷; 只有环境变了才重建。**

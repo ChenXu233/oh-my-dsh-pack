@@ -23,11 +23,11 @@ name: harness-dev
 
 services:
   dsh:
-    # 与生产同档（capable）: 避免"dev 能跑、prod 缺库"
+    # 默认 base 档（:slim）: 开发迭代要快。插件真要系统依赖时改 PLAN_ENV=capable
     image: ${DSH_DEV_IMAGE:-docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest}
     build:
       context: .
-      target: capable
+      target: ${DSH_DEV_TARGET:-slim}
       args:
         DSH_VERSION: ${DSH_VERSION:-next}
         INSTALL_FFMPEG: ${INSTALL_FFMPEG:-0}
