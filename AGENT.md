@@ -44,6 +44,9 @@ GitHub 是流水线用 `tencentcom/git-sync` 推过去的镜像, 手工往 GitHu
 - `.cnb.yml` 里 `main: push:` 只允许 build + sync; 绝不能引用 `dsh-deploy.yml`。
 - 部署脚本会 `up -d --force-recreate`: 方向目录是挂载的, 只改清单时镜像不变,
   不强制重建容器就不会重跑 plan-boot。
+- tag 流水线会 import 密钥仓库的 `dsh-deploy.yml` 和 `github-sync.yml`; 两者的
+  `allow_events` 必须含 `tag_push`, `allow_branches` 必须含 `v*`(tag 事件的
+  `CNB_BRANCH` 是 tag 名)。否则 Prepare 阶段直接失败, 不会构建也不会部署。
 - 不要为了"让它部署"而在 push 阶段偷偷加 deploy; 也不要给每个 push 自动打 tag。
 
 ## 3. 三层结构: 镜像 = 环境, 方向 = 数据, 实例 = 隔离

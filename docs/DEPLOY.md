@@ -81,9 +81,15 @@ allow_slugs:
   - ChenXu233/oh-my-dsh-pack
 allow_branches:
   - main
+  - "v*"
 allow_events:
   - push
+  - tag_push
 ```
+
+> `allow_branches` 检查的是 `CNB_BRANCH`：分支事件是分支名，tag 事件是 tag 名，
+> 所以 `v*` 也要放行。`github-sync.yml` 同时被 push 和 tag 流水线引用，
+> 它的 `allow_events` / `allow_branches` 同样要含 `tag_push` 和 `v*`。
 
 服务器 `authorized_keys` 里的部署 key 带 `restrict,command="/home/ubuntu/bin/dsh-deploy.sh"`：
 拿不到 shell，只能跑部署脚本。脚本里有 `sudo docker`，等价 root 级能力，收窄方式是
@@ -109,6 +115,7 @@ docker compose -f docker-compose.dev.yml down -v           # 重置（连卷清�
 | 流水线在 deploy 阶段红 | 密钥缺 `DEPLOY_SSH_KEY` / `DEPLOY_HOST` | 看 ERROR 行，补密钥仓库 |
 | imports 报 404/403 | slug / 分支 / `allow_*` 不匹配 | 核对 URL 与 allow 规则 |
 | 流水线绿但服务器没变 | 部署阶段被跳过 | 现在缺变量会 exit 1；查 deploy 日志 |
+| tag 流水线在 Prepare 阶段红，报 `does not conform to allow_events` | 密钥仓库没放行 `tag_push`（或 `allow_branches` 没放行 `v*`） | 在密钥仓库 Web 编辑补上 |
 | 改了清单没生效 | 容器没重启 | `sudo docker compose up -d --force-recreate` |
 | 插件装上不生效 | `engines.dsh` 不兼容 / 未 reconcile | 插件页看错误，或加版本豁免 |
 | `dsh plugin` 报 pnpm 缺失 | 镜像没装 pnpm | Dockerfile 里 `npm install -g pnpm@11` |
