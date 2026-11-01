@@ -39,6 +39,10 @@ plans/<方向>/
 `name@version`（**不要写空格**，`name version` 会变成非法包名）、git 写
 `github:owner/repo#sha`、本地源码写 `link:/abs/path`。装失败只 WARN，不阻断启动。
 
+启动时 `plan-boot.sh` 会记住上次成功应用的清单（`.plan-<方向>.applied`），
+只对**新增/变更**的行执行 `dsh plugin add`；没变的行跳过。从清单里删掉的行只提示、
+不自动卸载（避免误删网页手装或 `link:` 的包）。
+
 `link:` 有个硬边界：**pnpm 只建符号链接，不会给被链接的目录装依赖**。被链接的包在运行时
 `require` 自己的 dependency 会 `MODULE_NOT_FOUND`，而且报错发生在加载插件时，看上去像
 插件本身坏了。所以有 `dependencies` 的包不要走 `link:`，改成两行：

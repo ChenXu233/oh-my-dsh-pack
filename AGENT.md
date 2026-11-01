@@ -118,6 +118,9 @@ GitHub 是流水线用 `tencentcom/git-sync` 推过去的镜像, 手工往 GitHu
 
 - **方向目录是挂载的**: 改 `plans/**` 后要 `up -d --force-recreate`(或 `restart dsh`),
   镜像不变时 compose 不会自己重启。
+- **plan-boot 按 diff 装插件**: 它把当前清单和上次成功应用的 `.plan-<方向>.applied` 比较,
+  只 add 新增/变更的行, 没变的跳过; 从清单删掉的行只提示不卸载。所以改一行清单只会装那一行,
+  不会整份重装。
 - **`dsh plugin --profile <p> add <spec>`** 在 profile 目录跑 pnpm; npm 包必须写
   `name@version`(写成 `name version` 会生成非法依赖名, 之后该 profile 的所有
   pnpm 安装都会失败); git 写 `github:owner/repo#sha`; 本地源码写 `link:/abs/path`。

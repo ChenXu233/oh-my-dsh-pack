@@ -59,39 +59,62 @@ dsh --profile "$PROFILE" --dump-config >/dev/null 2>&1 || \
   echo "[plan] WARN: profile $PROFILE 初始化失败, 继续尝试启动"
 
 # --- 2. 按方向装插件 --------------------------------------------------------
-# 每次都重装 30 个包会让重启变慢, 所以装成功后在 profile 里留一个清单指纹;
-# 清单没变就跳过, 变了或上次有失败才重装。
+# 只装"新增/变更"的 spec: profile 里记住上次成功应用的清单(.applied),
+# 启动时和当前 plugins.txt 做 diff; 没变的行跳过, 变了才 add。
+# 这样改一行清单只会装那一行, 不会把整份清单重装一遍。
 PROFILE_DIR="${DSH_HOME:-/data/dsh-home}/profiles/$PROFILE"
 STAMP="$PROFILE_DIR/.plan-$PLAN.stamp"
-PLUGIN_HASH=""
-if [ -f "$DIR/plugins.txt" ]; then
-  PLUGIN_HASH="$(sha256sum "$DIR/plugins.txt" | awk '{print $1}')"
-  # 只有 profile 目录确实存在时才可能命中指纹; 目录没落地就老老实实装
-  if [ -d "$PROFILE_DIR" ] && [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$PLUGIN_HASH" ]; then
+APPLIED="$PROFILE_DIR/.plan-$PLAN.applied"
+CUR="$PROFILE_DIR/.plan-$PLAN.current"
+
+# 归一化: 去注释/空行, 只留 spec (行尾注释的前置空白必须有, 否则 github:...#sha 会被截断)
+normalize_plugins() {
+  sed -e 's/[[:space:]]#.*$//' -e 's/[[:space:]]*$//' "$1" | \
+    grep -v '^[[:space:]]*$' | grep -v '^[[:space:]]*#' || true
+}
+
+if [ -f "$DIR/plugins.txt" ] && [ -d "$PROFILE_DIR" ]; then
+  normalize_plugins "$DIR/plugins.txt" > "$CUR"
+  PLUGIN_HASH="$(sha256sum "$CUR" | awk '{print $1}')"
+
+  # 清单和上次应用的一致 -> 跳过
+  if [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$PLUGIN_HASH" ] && [ -f "$APPLIED" ]; then
     echo "[plan] 插件清单未变, 跳过预装"
-    PLUGIN_HASH=""
-  fi
-fi
+  else
+    INSTALL_FAILED=0
+    NEW_COUNT=0
+    SKIP_COUNT=0
+    while IFS= read -r spec || [ -n "$spec" ]; do
+      [ -n "$spec" ] || continue
+      # 上次已经应用过的 spec 直接跳过
+      if [ -f "$APPLIED" ] && grep -Fxq "$spec" "$APPLIED"; then
+        SKIP_COUNT=$((SKIP_COUNT + 1))
+        continue
+      fi
+      echo "[plan] install $spec"
+      NEW_COUNT=$((NEW_COUNT + 1))
+      dsh plugin --profile "$PROFILE" add "$spec" || {
+        INSTALL_FAILED=1
+        echo "[plan] WARN: $spec 安装失败(继续启动)"
+      }
+    done < "$CUR"
 
-if [ -f "$DIR/plugins.txt" ] && [ -n "$PLUGIN_HASH" ]; then
-  INSTALL_FAILED=0
-  while IFS= read -r line || [ -n "$line" ]; do
-    case "$line" in
-      ''|'#'*) continue ;;
-    esac
-    # 去掉行尾注释(前置必须有空白, 否则 github:...#sha 会被截断)
-    spec=$(printf '%s' "$line" | sed 's/[[:space:]]#.*$//' | sed 's/[[:space:]]*$//')
-    [ -n "$spec" ] || continue
-    echo "[plan] install $spec"
-    dsh plugin --profile "$PROFILE" add "$spec" || {
-      INSTALL_FAILED=1
-      echo "[plan] WARN: $spec 安装失败(继续启动)"
-    }
-  done < "$DIR/plugins.txt"
+    # 只提示, 不自动 remove: 手装/网页装的包和 link 包不应该被清单误删
+    if [ -f "$APPLIED" ]; then
+      REMOVED="$(grep -Fxv -f "$CUR" "$APPLIED" 2>/dev/null || true)"
+      if [ -n "$REMOVED" ]; then
+        echo "[plan] 清单里删掉了(仍保留已装):"
+        printf '%s\n' "$REMOVED" | sed 's/^/  - /'
+      fi
+    fi
 
-  # 有失败就不留指纹, 下次启动重试
-  if [ "$INSTALL_FAILED" -eq 0 ]; then
-    printf '%s\n' "$PLUGIN_HASH" > "$STAMP" 2>/dev/null || true
+    echo "[plan] 本次新增/变更 $NEW_COUNT 个, 跳过未变 $SKIP_COUNT 个"
+
+    # 有失败就不留指纹, 下次启动只重试失败/新增的
+    if [ "$INSTALL_FAILED" -eq 0 ]; then
+      cp "$CUR" "$APPLIED" 2>/dev/null || true
+      printf '%s\n' "$PLUGIN_HASH" > "$STAMP" 2>/dev/null || true
+    fi
   fi
 fi
 
