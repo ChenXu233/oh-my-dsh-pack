@@ -19,7 +19,7 @@
 @linxin666/dsh-client-ui-task-board@0.4.8
 @michengai/dsh-archive-manager@1.1.12
 @michengai/dsh-btw@1.0.8
-@nanmicoder/dsh-agent-teams@0.1.28
+@chenxu233/dsh-agent-teams@0.2.0
 @tonydua/dsh-web-search-exa@0.2.3
 @wxg-prc-cpg/browser-skill-dsh-plugin@0.3.3
 @yunmiao/studymate@2.0.3
