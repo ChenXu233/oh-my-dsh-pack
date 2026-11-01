@@ -35,8 +35,9 @@ plans/<方向>/
 | `PLAN_ENTRY` | `web` / `headless` | 常驻 web，还是一次性任务 |
 | `PLAN_TITLE` / `PLAN_DESC` | 字符串 | 只用于展示 |
 
-`plugins.txt` 的每行交给 `dsh plugin --profile <profile> add`，支持 npm 包名、
-`github:owner/repo#sha`、`link:/abs/path`。装失败只 WARN，不阻断启动。
+`plugins.txt` 的每行交给 `dsh plugin --profile <profile> add`：npm 包写
+`name@version`（**不要写空格**，`name version` 会变成非法包名）、git 写
+`github:owner/repo#sha`、本地源码写 `link:/abs/path`。装失败只 WARN，不阻断启动。
 
 ## 启动链路
 

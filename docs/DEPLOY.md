@@ -117,6 +117,7 @@ docker compose -f docker-compose.dev.yml down -v           # 重置（连卷清�
 | 流水线绿但服务器没变 | 部署阶段被跳过 | 现在缺变量会 exit 1；查 deploy 日志 |
 | tag 流水线在 Prepare 阶段红，报 `does not conform to allow_events` | 密钥仓库没放行 `tag_push`（或 `allow_branches` 没放行 `v*`） | 在密钥仓库 Web 编辑补上 |
 | 改了清单没生效 | 容器没重启 | `sudo docker compose up -d --force-recreate` |
+| 所有插件安装失败，pnpm 报 `ERR_PNPM_INVALID_DEPENDENCY_NAME` | 清单用了 `name version`（空格） | 改成 `name@version`，清掉 profile 里的坏 key 后重启 |
 | 插件装上不生效 | `engines.dsh` 不兼容 / 未 reconcile | 插件页看错误，或加版本豁免 |
 | `dsh plugin` 报 pnpm 缺失 | 镜像没装 pnpm | Dockerfile 里 `npm install -g pnpm@11` |
 | dev 实例第一次 link 失败 | profile 还没落地 | 脚本已先 `--dump-config`；看 `[dev]` 日志 |

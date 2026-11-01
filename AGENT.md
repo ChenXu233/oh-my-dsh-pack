@@ -112,8 +112,9 @@ GitHub 是流水线用 `tencentcom/git-sync` 推过去的镜像, 手工往 GitHu
 
 - **方向目录是挂载的**: 改 `plans/**` 后要 `up -d --force-recreate`(或 `restart dsh`),
   镜像不变时 compose 不会自己重启。
-- **`dsh plugin --profile <p> add <spec>`** 在 profile 目录跑 pnpm; spec 可以是 npm 包名、
-  git 地址、tarball, 或 `link:/abs/path`、`file:/abs/path`。
+- **`dsh plugin --profile <p> add <spec>`** 在 profile 目录跑 pnpm; npm 包必须写
+  `name@version`(写成 `name version` 会生成非法依赖名, 之后该 profile 的所有
+  pnpm 安装都会失败); git 写 `github:owner/repo#sha`; 本地源码写 `link:/abs/path`。
 - pnpm 跑完后 DSH 会 reconcile: 新装的包若声明 `dsh.bundle`(自带 `cordis.patch.yml`),
   会写进 `dsh.profile.bundles` 并组合出对应行, 插件随之挂载。
 - **compose 会插值 `$VAR`**: 只要还在 compose 里写 shell, 变量就必须写 `$$VAR`。
