@@ -32,11 +32,10 @@ dsh-image-gen@0.9.2
 dsh-mcp-connector@0.2.79
 dsh-notify-me@1.14.2
 dsh-ops@0.4.1
-github:ChenXu233/dsh-perf-patch#96d7dcb1d18b25262cb0294175f154e7232eb886  # dsh-perf-patch
 dsh-pet@0.3.8
 dsh-reasoning-tiers@0.3.0
 dsh-rewind-plugin@0.19.0
-github:homily707/dsh-session-header  # dsh-session-header
+@chenxu233/dsh-session-header@0.2.4  # dsh-session-header（npm 版）
 dsh-whale-widget@0.4.2
 dshmarket@1.70.2
-github:LayneChai/superpowers-dsh#426e7c4e727084374616ebd942a7e69567036d3a  # superpowers-dsh
+superpowers-dsh@0.4.0  # superpowers-dsh（npm 版）
