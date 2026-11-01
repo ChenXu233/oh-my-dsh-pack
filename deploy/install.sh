@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# 首次部署/更新: 拉最新仓库 -> 起容器 (镜像由 GitHub Actions 推送/加载, 本机不构建不拉取)
+# 首次部署/更新: 拉最新仓库 -> 起容器 (镜像由 CNB 构建并推送, 本机不构建)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo "== git pull =="
 git pull --ff-only
 
-echo "== docker compose up -d =="
-sudo docker compose up -d
+echo "== docker compose pull =="
+sudo docker compose pull
+
+echo "== docker compose up -d --force-recreate =="
+sudo docker compose up -d --force-recreate
 sleep 3
 sudo docker compose ps
 

@@ -4,10 +4,10 @@
 #   - 推分支(main)  : 构建验证 + 同步镜像到 GitHub。不推镜像、不部署。
 #   - 打 tag(v* 等) : 构建 + 推镜像(:latest/:slim 与 :<tag>/:<tag>-slim) + 同步 tag + SSH 部署。
 #
-# 镜像分两档(见 Dockerfile / docs/PLANS.md):
-#   :latest  = capable  full / harness   (带 Python + LibreOffice + 中文字体)
-#   :slim    = slim     mini / chat / coder
-# 两档用同一个 Dockerfile, 只是 --target 不同。
+# 镜像分两档环境(见 Dockerfile / docs/PLANS.md):
+#   :latest  = capable  full / harness / dev  (带 Python + LibreOffice + 中文字体)
+#   :slim    = slim     chat                  (只有 node + dsh + pnpm + git)
+# 两档用同一个 Dockerfile, 只是 --target 不同; 方向(plans/)挂载, 不进镜像。
 #
 # GitHub 镜像: 用官方插件 tencentcom/git-sync 推送。
 #   旧版用 GitLab 的 from_secret 拿 token, CNB 不认, 变量恒为空,
@@ -37,10 +37,9 @@ main:
             branch: main
             push_tags: true
 
+        # slim 就是 base 加空行; capable 能过, slim 必过, 所以 push 只验 capable
         - name: build image (verify only, not released)
           script: |
-            docker build --target slim \
-              -t oh-my-dsh-pack:verify-slim --build-arg DSH_VERSION=next .
             docker build --target capable \
               -t oh-my-dsh-pack:verify-capable --build-arg DSH_VERSION=next .
 

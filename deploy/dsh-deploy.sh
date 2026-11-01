@@ -20,8 +20,10 @@ sudo -n docker login docker.cnb.cool -u cnb --password-stdin < "$HOME/.cnb-token
 echo "[deploy] compose pull"
 sudo -n docker compose pull
 
-echo "[deploy] compose up -d"
-sudo -n docker compose up -d
+# plans/ 是挂载的: 只改清单时镜像不变, up -d 不会重启容器, 所以强制重建,
+# 让 entrypoint/plan-boot 重新读清单并装插件。
+echo "[deploy] compose up -d --force-recreate"
+sudo -n docker compose up -d --force-recreate
 
 echo "[deploy] ps"
 sudo -n docker compose ps

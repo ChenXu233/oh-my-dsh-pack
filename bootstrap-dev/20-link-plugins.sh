@@ -7,9 +7,9 @@
 #
 # 这个目录只有在用 docker-compose.dev.yml 启动时才会被挂载, 标准部署不会执行到这里。
 #
-# 与 plans/<方案>/plugins.txt 的分工:
-#   plans/<方案>/plugins.txt 装"发布物"(npm 包), 改代码必须发版; 它在镜像里,
-#                            所以每次改动都要重建镜像。
+# 与 plans/<方向>/plugins.txt 的分工:
+#   plans/<方向>/plugins.txt 装"发布物"(npm 包), 改代码必须发版; 它挂载在
+#                            /opt/plans, 改清单不用重建镜像。
 #   bootstrap-dev/20-...sh   装"源码"(link: 依赖), 指向宿主机挂进来的目录,
 #                            改代码只需同步构建产物 + 重启容器, 不必发版。
 #
@@ -29,6 +29,10 @@ if ! command -v pnpm >/dev/null 2>&1; then
   echo "[dev] WARN: pnpm 不在 PATH, 无法执行 link 安装 (dsh plugin 依赖 pnpm)"
   exit 0
 fi
+
+# 全新卷上 profile 目录还不存在; 先 materialize, 否则 dsh plugin add 找不到 profile
+dsh --profile "$PROFILE" --dump-config >/dev/null 2>&1 || \
+  echo "[dev] WARN: profile $PROFILE 初始化失败, 继续尝试"
 
 found=0
 for dir in "$ROOT"/*/; do

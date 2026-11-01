@@ -1,15 +1,16 @@
 #!/bin/sh
 # ============================================================================
-# 按"方案"启动: 读 plans/<plan>/plan.env + plugins.txt, 装插件, 再 exec dsh
+# 按"方向"启动: 读 plans/<plan>/plan.env + plugins.txt, 装插件, 再 exec dsh
 # ----------------------------------------------------------------------------
-# 方案的差异只有三件事:
+# 方向是数据: plans/ 由 compose 挂载到 /opt/plans（不在镜像里）。
+# 方向的差异只有三件事:
 #   1. 用哪个 dsh profile (web / headless)
 #   2. 预装哪些插件    (plugins.txt, 没有就跳过)
 #   3. 用什么方式启动  (常驻 web 服务 / 一次性 headless)
 #
 # 环境变量:
-#   DSH_PLAN        方案名, 默认 full
-#   DSH_PLANS_DIR   方案目录, 默认 /opt/plans
+#   DSH_PLAN        方向名, 默认 full
+#   DSH_PLANS_DIR   方向目录, 默认 /opt/plans（compose 挂载）
 #   DSH_PUBLIC_URL  web 入口对外地址(可选)
 #   DSH_TRUSTED_HOST 额外信任的 authority(可选)
 #   DSH_BIND_HOST   绑定地址, 默认取容器第一个 IP
@@ -20,9 +21,14 @@ PLAN="${DSH_PLAN:-full}"
 PLANS_DIR="${DSH_PLANS_DIR:-/opt/plans}"
 DIR="$PLANS_DIR/$PLAN"
 
+if [ ! -d "$PLANS_DIR" ]; then
+  echo "[plan] 没有 $PLANS_DIR: compose 需要挂载 ./plans:/opt/plans:ro"
+  exit 1
+fi
+
 if [ ! -d "$DIR" ]; then
-  echo "[plan] 未知方案: $PLAN"
-  echo "[plan] 可用方案: $(ls "$PLANS_DIR" 2>/dev/null | tr '\n' ' ')"
+  echo "[plan] 未知方向: $PLAN"
+  echo "[plan] 可用方向: $(ls "$PLANS_DIR" 2>/dev/null | tr '\n' ' ')"
   exit 1
 fi
 
@@ -33,13 +39,13 @@ ENTRY="${PLAN_ENTRY:-web}"
 
 echo "[plan] >>> plan=$PLAN profile=$PROFILE entry=$ENTRY  ${PLAN_TITLE:-}"
 
-# 可选: 先清空该 profile 再按当前方案重建(会丢会话历史)
+# 可选: 先清空该 profile 再按当前方向重建(会丢会话历史)
 #   DSH_PLAN_RESET=1 docker compose run --rm dsh
 if [ "${DSH_PLAN_RESET:-0}" = "1" ]; then
   RESET_DIR="${DSH_HOME:-/data/dsh-home}/profiles/$PROFILE"
   echo "[plan] RESET: 清空 $RESET_DIR"
   rm -rf "$RESET_DIR"
-  # RESET_ONLY=1 只清不启动, 用于"换方案前先把 profile 推平"
+  # RESET_ONLY=1 只清不启动, 用于"换方向前先把 profile 推平"
   if [ "${DSH_PLAN_RESET_ONLY:-0}" = "1" ]; then
     echo "[plan] RESET_ONLY: 已清空, 退出"
     exit 0
@@ -52,7 +58,7 @@ fi
 dsh --profile "$PROFILE" --dump-config >/dev/null 2>&1 || \
   echo "[plan] WARN: profile $PROFILE 初始化失败, 继续尝试启动"
 
-# --- 2. 按方案装插件 --------------------------------------------------------
+# --- 2. 按方向装插件 --------------------------------------------------------
 # 每次都重装 30 个包会让重启变慢, 所以装成功后在 profile 里留一个清单指纹;
 # 清单没变就跳过, 变了或上次有失败才重装。
 PROFILE_DIR="${DSH_HOME:-/data/dsh-home}/profiles/$PROFILE"

@@ -15,66 +15,66 @@ A "batteries-included" kit that runs the dsh web GUI in Docker: image build, CI 
 - **One-command deploy**: `docker compose up -d`. Auth is built into dsh (launch token → signed cookie), no auth plugin needed
 - **Minute-level CI in China**: CNB cloud build publishes images (`docker.cnb.cool/<you>/oh-my-dsh-pack`) and mirrors the repo to GitHub automatically
 - **All state in volumes**: plugins, sessions, API keys, and workspaces live in named volumes — image upgrades lose nothing
-- **Pick an install plan**: one folder per plan under `plans/` decides what gets installed and how dsh boots — full / minimal / chat / capability-complete / headless coder (see [docs/PLANS.md](docs/PLANS.md))
+- **Pick a direction**: one folder under `plans/` decides what gets installed and how dsh boots — full / chat / harness (see [docs/PLANS.md](docs/PLANS.md)). Directions are data: changing a plugin list needs no image rebuild.
 
 ## Quick start
 
 ```bash
 git clone https://github.com/ChenXu233/oh-my-dsh-pack.git
 cd oh-my-dsh-pack
-sudo ./scripts/up.sh            # full by default; also mini / chat / harness
+sudo ./scripts/up.sh            # full by default; also chat / harness
 sudo docker compose logs dsh | grep 'dsh web:'   # copy the tokenized login URL
 ```
 
-Requires Docker + Compose v2. On first start the profile is initialized from the bundled dsh template, then the selected plan installs its plugins and boots.
+Requires Docker + Compose v2. On first start the profile is initialized from the bundled dsh template, then the selected direction installs its plugins and boots.
 
-## Pick a plan
+## Pick a direction
 
-| Plan | What you get | Image |
+| Direction | What you get | Image |
 |---|---|---|
 | `full` | my complete tuned setup (default) | capable |
-| `mini` | dsh itself, no preinstalled plugins | slim |
-| `chat` | open-and-chat: memory, thinking tiers, rich text, images, notifications | slim |
-| `harness` | subscription-grade output self-hosted: docs / sheets / PPT / web research / scheduled tasks, with your own models and quota | capable |
-| `coder` | headless coder: one task in, result on stdout | slim |
+| `chat` | open-and-chat; plugin list to be chosen | slim |
+| `harness` | subscription-grade output self-hosted: docs / sheets / PPT / web research / scheduled tasks; plugin list to be chosen | capable |
 
 ```bash
 sudo ./scripts/up.sh                 # full
-sudo ./scripts/up.sh mini
+sudo ./scripts/up.sh chat
 sudo ./scripts/up.sh harness
-sudo ./scripts/up.sh coder "fix the failing tests"
 ```
 
 `capable` adds Python + LibreOffice + CJK fonts for documents and decks; `slim` is enough for chat.
+Directions are data: `plans/<direction>/plugins.txt` is mounted into the container, so changing it
+needs a `git pull` + restart, not an image rebuild.
 
-On your own domain, set `DSH_PUBLIC_URL` / `DSH_TRUSTED_HOST` in `docker-compose.yml` (or the environment).
+On your own domain, set `DSH_PUBLIC_URL` / `DSH_TRUSTED_HOST` in `.env` (or the environment).
 Details in [docs/PLANS.md](docs/PLANS.md).
 
 ## Layout
 
 | Path | Purpose |
 |---|---|
-| `Dockerfile` | node:22-slim + global dsh, non-root, capped heap |
+| `Dockerfile` | node:22-slim + global dsh, non-root, capped heap; two env targets (`slim` / `capable`) |
 | `entrypoint.sh` | run bootstrap hooks → hand off to `scripts/plan-boot.sh` |
-| `plans/<plan>/` | **edit me**: plan definition (`plan.env`) + plugin list (`plugins.txt`) |
-| `scripts/up.sh` | boot one plan (headless plans run a task directly) |
-| `docs/PLANS.md` | the five plans, what switching costs, how to add one |
-| `docker-compose.yml` | ports / volumes / memory cap / healthcheck |
-| `.cnb.yml` | CNB pipeline: build → artifact registry → GitHub mirror → (optional) SSH deploy |
+| `plans/<direction>/` | **edit me**: direction (`plan.env`) + plugin list (`plugins.txt`); mounted, not baked |
+| `scripts/up.sh` | boot one direction (or the dev instance) |
+| `docs/PLANS.md` | the direction matrix, how to add/switch one |
+| `docs/DEPLOY.md` | deploy, update, rollback, secrets, troubleshooting |
+| `docker-compose.yml` | production instance: ports / volumes / memory cap / healthcheck |
+| `docker-compose.dev.yml` | dev instance: separate project/volumes/port + plugin sources mounted |
+| `.cnb.yml` | CNB pipeline: verify → artifact registry → GitHub mirror → tag-only deploy |
 | `deploy/install.sh` | one-shot server deploy/update |
 | `AGENT.md` | **rules for agents working in this repo**: what needs an image rebuild, what does not |
-| `bootstrap-dev/` + `docker-compose.dev.yml` | the *author's own* publish-free dev loop (see below) |
 
 ## How plugins get installed (pick your lane)
 
 | Lane | Who it is for | What a code change costs |
 |---|---|---|
-| **Published** | everyone | list npm package names in `plans/<plan>/plugins.txt`; changing code means publishing a release and rebuilding the image |
-| **Dev loop** | the plugin author only | `bootstrap-dev/` + `docker-compose.dev.yml`: source is mounted into the container and installed with `link:`, so a change only needs the built output synced and a container restart |
+| **Published** | everyone | list npm package names in `plans/<direction>/plugins.txt`; the list is mounted, so it takes a `git pull` + restart, not an image rebuild. Changing the plugin's own code still means publishing a release |
+| **Dev instance** | the plugin author only | `./scripts/up.sh dev` + `bootstrap-dev/`: source is mounted into a blank dsh and installed with `link:`, so a change only needs the built output synced and a restart |
 
 `bootstrap-dev/`, `docker-compose.dev.yml` and `scripts/sync-plugin.ps1` are the author's personal
 scaffolding. **You probably do not want them**: add your own package names to
-`plans/<plan>/plugins.txt`, or install plugins from the web plugin manager after startup.
+`plans/<direction>/plugins.txt`, or install plugins from the web plugin manager after startup.
 See [AGENT.md](AGENT.md).
 
 ## Where your data lives
@@ -85,12 +85,15 @@ See [AGENT.md](AGENT.md).
 | Agent workspace files | `dsh-workspace` volume | ✅ kept |
 | Terminal processes / temp files | container layer | ❌ gone (expected) |
 
+The dev instance uses its own `dsh-dev-home` / `dsh-dev-workspace` volumes, so plugin experiments
+never touch production state.
+
 Note: after a major dsh upgrade, plugins inside the volume may be blocked by the `engines.dsh` compatibility check — update or exempt them in the web plugin manager.
 
 ## Updating
 
 ```bash
-git pull && sudo docker compose pull && sudo docker compose up -d
+git pull && sudo docker compose pull && sudo docker compose up -d --force-recreate
 ```
 
 ## Credits & disclaimer

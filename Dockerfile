@@ -1,12 +1,14 @@
 # syntax=docker/dockerfile:1
 #
-# 一个镜像仓, 两档构建:
-#   --target slim    只有 dsh 本体 + 启动脚本          -> :slim   (mini / chat / coder)
-#   --target capable + Python/LibreOffice/中文字体     -> :latest (full / harness)
+# 一个镜像仓, 两档环境:
+#   --target slim    只有 dsh 本体 + 启动脚本          -> :slim   (chat)
+#   --target capable + Python/LibreOffice/中文字体     -> :latest (full / harness / dev)
 #
 # 为什么必须分档: PPT/文档/PDF 这些能力靠的是系统依赖(office 技能会去找
 # Python 库和 LibreOffice), 装插件装不出来。把 LibreOffice 塞进所有档位
 # 又会让只想聊天的人白扛 1G+。
+#
+# 方向(plans/)不烤进镜像: compose 挂载 ./plans:/opt/plans:ro, 改清单不用重建。
 ARG DSH_VERSION=next
 
 # ============================================================================
@@ -35,9 +37,9 @@ RUN npm install -g pnpm@11 && pnpm --version
 ENV DSH_HOME=/data/dsh-home
 WORKDIR /data/workspace
 
-# 安装方案 + 启动脚本: 两档共用, 差别只在系统依赖
-COPY --chown=node:node plans/ /opt/plans/
-COPY --chown=node:node scripts/ /opt/scripts/
+# 启动逻辑 + 镜像内初始化: 两档共用, 差别只在系统依赖。
+# 方向(plans/)是数据, 由 compose 挂载, 不 COPY 进镜像。
+COPY --chown=node:node scripts/plan-boot.sh /opt/scripts/plan-boot.sh
 COPY --chown=node:node bootstrap/ /opt/bootstrap/
 COPY --chown=node:node entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/bootstrap/*.sh /opt/scripts/*.sh /opt/entrypoint.sh 2>/dev/null || true
@@ -48,12 +50,12 @@ EXPOSE 3080
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/entrypoint.sh"]
 
 # ============================================================================
-# slim: 只有 dsh 本体 (mini / chat / coder)
+# slim: base 环境, 只有 dsh 本体 (chat)
 # ============================================================================
 FROM base AS slim
 
 # ============================================================================
-# capable: 能"出东西"的一档 (full / harness)
+# capable: 能"出东西"的一档 (full / harness / dev)
 # ============================================================================
 FROM base AS capable
 USER root

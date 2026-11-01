@@ -94,12 +94,12 @@ foreach ($f in @('package.json', 'cordis.patch.yml', 'client/client.js')) {
   if ($LASTEXITCODE -ne 0) { throw "同步 $f 失败" }
 }
 
-Write-Step '远端重启 (dev 覆盖层)'
+Write-Step '远端重启 (开发实例)'
 $remote = @"
 set -e
 cd $RemoteProjectDir
 grep -q '^DSH_DEV_PLUGINS=' .env 2>/dev/null || echo 'DSH_DEV_PLUGINS=$RemotePluginsDir' >> .env
-COMPOSE='docker compose -f docker-compose.yml -f docker-compose.dev.yml'
+COMPOSE='docker compose -f docker-compose.dev.yml'
 sudo `$COMPOSE up -d
 sudo `$COMPOSE restart dsh
 sleep 4

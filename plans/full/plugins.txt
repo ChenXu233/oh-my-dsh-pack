@@ -1,4 +1,4 @@
-# full 方案的预装插件清单
+# full 方向的预装插件清单
 # ---------------------------------------------------------------------------
 # 每行一个 spec，交给 `dsh plugin --profile <profile> add`；
 # 支持 npm 包名、github:owner/repo#sha、link:/abs/path。

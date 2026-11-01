@@ -1,30 +1,60 @@
 # ============================================================================
-# 个人开发环境覆盖层 (可选, 必须显式 -f 才会生效)
+# 开发实例（独立栈，和 docker-compose.yml 的生产栈互不干扰）
 # ----------------------------------------------------------------------------
-# 用途: 把【多个插件】的源码目录挂进容器, 用 link: 规格装进 web profile。
+# 用途: 起一个空白 dsh（plans/dev: 不预装插件），把插件源码挂进容器，
+#       由 bootstrap-dev/20-link-plugins.sh 用 link: 装进 web profile。
 #
-# 目录约定(重要):
-#   ${DSH_DEV_PLUGINS:-/srv/dev-plugins}/
-#     ├── dsh-workspace-mesh/    <- 一个插件一个子目录
-#     ├── dsh-another-plugin/
-#     └── ...
-#   每个子目录必须是一个可加载的包: 有 package.json, 且 lib/index.js 已构建。
-#   容器启动时 bootstrap-dev/20-link-plugins.sh 会遍历所有子目录逐个 link 安装。
+# 与生产栈的隔离:
+#   项目名 harness-dev、容器 harness-dsh-dev、卷 dsh-dev-*、端口 3211。
+#   生产栈的卷 / 容器 / 端口完全不受影响。
 #
-# 不要把所有插件塞进同一个目录: 包之间靠 package.json 的 name 区分, 混在一起装不上。
-#
-# 这条链路只服务于"插件作者本人"的开发闭环:
-#   - 没有这份源码的部署, 行为与标准部署完全一致(这个文件不生效);
-#   - 别人请按自己的插件清单走 plans/<方案>/plugins.txt, 或直接在网页插件管理器里装。
+# 目录约定: 一个插件一个子目录
+#   ${DSH_DEV_PLUGINS:-/srv/dev-plugins}/<插件>/
+#     ├── package.json
+#     └── lib/index.js   （先在该插件仓库里构建）
 #
 # 用法:
-#   DSH_DEV_PLUGINS=/srv/dev-plugins \
-#     docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#   ./scripts/up.sh dev
+#   docker compose -f docker-compose.dev.yml logs -f dsh
+#   docker compose -f docker-compose.dev.yml down -v   # 连卷清掉, 回到空白
 # ============================================================================
+name: harness-dev
+
 services:
   dsh:
+    # 与生产同档（capable）: 避免"dev 能跑、prod 缺库"
+    image: ${DSH_DEV_IMAGE:-docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest}
+    build:
+      context: .
+      target: capable
+      args:
+        DSH_VERSION: ${DSH_VERSION:-next}
+        INSTALL_FFMPEG: ${INSTALL_FFMPEG:-0}
+        INSTALL_CHROMIUM: ${INSTALL_CHROMIUM:-0}
+    container_name: harness-dsh-dev
+    environment:
+      DSH_PLAN: dev
+      # 远程访问开发实例时再填; 留空就用 localhost:3211
+      DSH_PUBLIC_URL: ${DSH_DEV_PUBLIC_URL:-}
+      DSH_TRUSTED_HOST: ${DSH_DEV_TRUSTED_HOST:-}
+    # 开发实例失败要看得见, 不自动拉起
+    restart: "no"
+    ports:
+      - "127.0.0.1:3211:3080"
     volumes:
-      # 插件源码根目录: 宿主机 -> 容器固定路径
+      - dsh-dev-home:/data/dsh-home
+      - dsh-dev-workspace:/data/workspace
+      - ./plans:/opt/plans:ro
       - ${DSH_DEV_PLUGINS:-/srv/dev-plugins}:/opt/dev-plugins:ro
-      # 个人开发用的 bootstrap 脚本: 标准部署不会挂载它
       - ./bootstrap-dev:/opt/dev:ro
+    working_dir: /data/workspace
+    mem_limit: ${DSH_DEV_MEM_LIMIT:-2g}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  dsh-dev-home:
+  dsh-dev-workspace:
