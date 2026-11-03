@@ -89,11 +89,25 @@ GitHub 是流水线用 `tencentcom/git-sync` 推过去的镜像, 手工往 GitHu
 - **link 只适用于零运行时依赖的包**: pnpm 的 `link:` 只建符号链接, **不会给被链接的目录装依赖**,
   被链接的包在运行时 require 自己的 dependency 会 `MODULE_NOT_FOUND`。有 `dependencies` 的包先
   `pnpm pack`, 再用 `dsh plugin --profile web add /abs/path/<包>-<版本>.tgz` 装(同样不用发版)。
-- `./scripts/up.sh dev` 起开发实例; `scripts/sync-plugin.ps1 -Plugin <目录名>` 同步并重启。
+- `sudo bash ./scripts/up.sh dev` 起开发实例（仓库里的 `scripts/*.sh` 没带可执行位，直接 `./scripts/up.sh` 会 `Permission denied`）；`scripts/sync-plugin.ps1 -Plugin <目录名>` 同步并重启。
 - 开发实例失败不自动拉起(`restart: "no"`), 便于看日志。
 - 不要把开发实例的挂载/脚本挪进生产栈; 使用者没有源码, 他们改 `plans/<方向>/plugins.txt`
   或在网页插件管理器里装。
 
+### 4.1 服务器只运行, 不构建
+
+**任何一台部署机(开发实例所在的那台也一样)都不是构建机。** 上面只跑容器; `pnpm install` /
+`pnpm build` / 测试套件都在本地跑完再同步。理由不是洁癖: 这些机器的内存是给运行时留的,
+一个插件的开发依赖(数百个包、数百 MB)足以把可用内存压到 0。
+
+- 2026-11-03 的实例: 有人把插件仓库 clone 到一台 **1.6 GB** 的运行机上直接 `pnpm install`,
+  十分钟内内存被打穿, 系统卡死并被云监控硬重启 —— 日志里只有 journald 的 `Under memory
+  pressure`, 连 OOM killer 都没写出来; 那台机上还跑着 10 个容器和 dsh 本身。
+- 要验证"在真实宿主上能装": 本地 `pnpm pack` 出 tgz, scp 上去, 容器里
+  `dsh plugin --profile <profile> add /abs/path/<包>.tgz`。打包在本地, 服务器只解包和链接。
+- 要跑完整 Linux 测试矩阵: 交给 CI, 或临时开一台内存够的实例; 不要借用部署机。
+- 收工要还原: `20-link-plugins.sh` 只增不删, 从 `/srv/dev-plugins/` 删目录不会把 link 从
+  profile 里摘掉 —— 必须 `dsh plugin --profile <profile> remove <包名>`, 再重启实例。
 ## 5. 不暴露个人信息与凭据
 
 - **不写具体主机地址**。远端用 SSH 别名(例如 `dsh-server`), 地址只存在本机 `~/.ssh/config`。
