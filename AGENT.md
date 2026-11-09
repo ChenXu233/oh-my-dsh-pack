@@ -18,7 +18,7 @@
 | `docker-compose.dev.yml` | 开发实例: 独立 project/卷/端口 + 挂源码 | 改开发编排 |
 | `scripts/up.sh` | 选方向启动 / 起开发实例 | 启动 |
 | `scripts/sync-plugin.ps1` | 本地 build → scp → 重启开发实例 | 每轮迭代 |
-| `Dockerfile` | node22 + dsh + pnpm; 两档环境(`slim`/`capable`), 改它必须重建镜像 | 改运行环境 / 加系统依赖 |
+| `Dockerfile` | node24 + dsh + pnpm; 两档环境(`slim`/`capable`), 改它必须重建镜像 | 改运行环境 / 加系统依赖 |
 
 ## 1. 主仓库是 CNB, GitHub 只是镜像
 

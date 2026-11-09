@@ -14,7 +14,9 @@ ARG DSH_VERSION=next
 # ============================================================================
 # base: 所有档位共用的底座
 # ============================================================================
-FROM node:22-bookworm-slim AS base
+# node 24: @deepseek-ai/dsh 0.2.2+ 的 engines 要求 node >=24.9.0
+# (镜像 tag 跟 24 大版本走, 只要 >=24.9.0 就行; 别改回 22)
+FROM node:24-bookworm-slim AS base
 ARG DSH_VERSION
 ENV NODE_ENV=production
 # 低内存服务器护栏: 限制 V8 堆 (构建期 npm 与运行期 dsh 都生效)
