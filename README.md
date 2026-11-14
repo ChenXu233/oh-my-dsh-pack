@@ -55,7 +55,7 @@ Details in [docs/PLANS.md](docs/PLANS.md).
 |---|---|
 | `Dockerfile` | node:24-slim + global dsh, non-root, capped heap; two env targets (`slim` / `capable`) |
 | `entrypoint.sh` | run bootstrap hooks → hand off to `scripts/plan-boot.sh` |
-| `plans/<direction>/` | **edit me**: direction (`plan.env`) + plugin list (`plugins.txt`); mounted, not baked |
+| `plans/<direction>/` | **edit me**: direction (`plan.env`) + plugin list (`plugins.txt`) + plan patch (`patch.yml`); mounted, not baked |
 | `scripts/up.sh` | boot one direction (or the dev instance) |
 | `docs/PLANS.md` | the direction matrix, how to add/switch one |
 | `docs/DEPLOY.md` | deploy, update, rollback, secrets, troubleshooting |

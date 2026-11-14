@@ -12,7 +12,7 @@
 | `deploy/dsh-deploy.sh` | 服务器端部署脚本(被受限 key 强制调用) | 改部署步骤 |
 | `deploy/install.sh` | 服务器端手工一键部署/更新 | 手工上线 |
 | [docs/PLANS.md](docs/PLANS.md) | **方向矩阵**: full/chat/harness/dev、加方向、切方向 | 改方向 / 加方向 |
-| `plans/<方向>/plan.env` + `plugins.txt` | 方向 = 数据: 环境要求、profile、入口、插件清单 | 改预装插件 |
+| `plans/<方向>/plan.env` + `plugins.txt` + `patch.yml` | 方向 = 数据: 环境要求、profile、入口、插件清单、计划级 patch | 改预装插件 / 默认配置 |
 | `bootstrap-dev/20-link-plugins.sh` | 开发实例: 遍历 `/opt/dev-plugins/<插件>/` 逐个 `link:`(仅零运行时依赖的包) | 开发插件 |
 | `docker-compose.yml` | 生产实例: 端口/卷/内存/健康检查 + 挂载 plans | 改生产编排 |
 | `docker-compose.dev.yml` | 开发实例: 独立 project/卷/端口 + 挂源码 | 改开发编排 |
@@ -132,6 +132,7 @@ GitHub 是流水线用 `tencentcom/git-sync` 推过去的镜像, 手工往 GitHu
 
 - **方向目录是挂载的**: 改 `plans/**` 后要 `up -d --force-recreate`(或 `restart dsh`),
   镜像不变时 compose 不会自己重启。
+- **计划级 patch**: `plans/<方向>/patch.yml` 由 plan-boot 以 `dsh --patch` 叠在 profile 层之后，用于挂载 bundle patch 为空的插件（如 mesh）和非私有默认值；加载前先 `--dump-config` 验证，失败只 WARN 不阻断启动。
 - **plan-boot 按 diff 装插件**: 它把当前清单和上次成功应用的 `.plan-<方向>.applied` 比较,
   只 add 新增/变更的行, 没变的跳过; 从清单删掉的行只提示不卸载。所以改一行清单只会装那一行,
   不会整份重装。

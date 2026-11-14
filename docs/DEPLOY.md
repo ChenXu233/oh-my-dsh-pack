@@ -119,6 +119,7 @@ docker compose -f docker-compose.dev.yml down -v           # 重置（连卷清�
 | 改了清单没生效 | 容器没重启 | `sudo docker compose up -d --force-recreate` |
 | 所有插件安装失败，pnpm 报 `ERR_PNPM_INVALID_DEPENDENCY_NAME` | 清单用了 `name version`（空格） | 改成 `name@version`，清掉 profile 里的坏 key 后重启 |
 | 插件装上不生效 | `engines.dsh` 不兼容 / 未 reconcile | 插件页看错误，或加版本豁免 |
+| 插件装了但没挂载（设置页不出现） | 该包 `cordis.patch.yml` 为空（如 mesh），`add` 只装包 | 在 `plans/<方向>/patch.yml` 加 `- insert: - id: <id>`；`dsh --dump-config` 里搜得到才算挂上 |
 | `dsh plugin` 报 pnpm 缺失 | 镜像没装 pnpm | Dockerfile 里 `npm install -g pnpm@11` |
 | dev 实例第一次 link 失败 | profile 还没落地 | 脚本已先 `--dump-config`；看 `[dev]` 日志 |
 

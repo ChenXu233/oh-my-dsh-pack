@@ -1,41 +1,25 @@
-# full 方向的预装插件清单
-# ---------------------------------------------------------------------------
-# 每行一个 spec，交给 `dsh plugin --profile <profile> add`：
-#   npm 包     name@version   （不要写空格；`name version` 会变成非法包名）
-#   git 包     github:owner/repo#sha
-#   本地源码   link:/abs/path
-# '#' 开头是注释；行尾注释要空一格写 '#'。
-#
-# 这份清单是从作者本机 ~/.dsh/profiles/desktop 的 dependencies 抄过来的，
-# 也就是"全量风味"的真实来源。桌面端专属的几个(client-ui / 宠物 / 侧栏)
-# 在 web profile 下是否都成立还没逐一验证——失败的会 WARN 继续，不影响启动。
-# ---------------------------------------------------------------------------
-@changfenhuang/dsh-genui@0.15.0
-@copylee/dsh-computer-use@0.8.1
-@furongjun1999/dsh-memory@0.9.22
-@hytime/dsh-thinking-effort@0.3.12
+# dsh-workspace-mesh 的 bundle patch 是空的: add 只装包, 挂载靠 patch.yml
+@changfenhuang/dsh-genui@0.16.0
+@chenxu233/dsh-agent-teams@0.2.4
+@copylee/dsh-computer-use@0.8.3
+@hytime/dsh-thinking-effort@0.4.2
 @linxin666/dsh-client-ui-git-graph@0.4.14
-@linxin666/dsh-client-ui-skill-explorer@0.4.14
-@linxin666/dsh-client-ui-task-board@0.4.14
-@michengai/dsh-archive-manager@1.2.6
-@michengai/dsh-btw@1.3.2
-@chenxu233/dsh-agent-teams@0.2.2
+@linxin666/dsh-client-ui-skill-explorer@0.4.16
+@linxin666/dsh-client-ui-task-board@0.4.16
+@michengai/dsh-archive-manager@1.3.1
+@michengai/dsh-btw@1.3.8
 @tonydua/dsh-web-search-exa@0.2.3
-@wxg-prc-cpg/browser-skill-dsh-plugin@0.4.1
-@yunmiao/studymate@2.0.3
-dsh-better-sidebar@0.28.2
-dsh-builtin-browser@0.5.6
-dsh-config-manager@0.3.1
-dsh-context@0.81.0
+@yunmiao/studymate@2.0.4
+dsh-better-sidebar@0.30.1
+dsh-config-manager@0.8.0
+dsh-context@0.83.1
 dsh-gemini-tool-schema@0.3.0
-dsh-image-gen@0.10.2
-dsh-mcp-connector@0.2.93
-dsh-notify-me@1.17.0
-dsh-ops@0.4.4
-dsh-pet@0.4.1
+dsh-image-gen@0.11.1
+dsh-mcp-connector@0.2.101
+dsh-notify-me@1.19.0
+dsh-pet@0.4.7
 dsh-reasoning-tiers@0.3.0
-dsh-rewind-plugin@0.19.2
-@chenxu233/dsh-session-header@0.2.4  # dsh-session-header（npm 版）
+dsh-rewind-plugin@0.21.2
 dsh-whale-widget@0.4.2
-dshmarket@1.73.10
-superpowers-dsh@0.4.0  # superpowers-dsh（npm 版）
+dsh-workspace-mesh@0.3.3
+dshmarket@1.73.17

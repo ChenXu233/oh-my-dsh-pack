@@ -118,6 +118,34 @@ if [ -f "$DIR/plugins.txt" ] && [ -d "$PROFILE_DIR" ]; then
   fi
 fi
 
+# 插件没装上或 YAML 坏了都会让 dsh 起不来: 先验证再叠加
+PATCH_ARGS=""
+PLAN_PATCH="$DIR/patch.yml"
+if [ -f "$PLAN_PATCH" ]; then
+  PATCH_OK=1
+  node --input-type=module - "$PLAN_PATCH" "$PROFILE_DIR" "$DIR/plugins.txt" <<'NODE' || PATCH_OK=0
+import { existsSync, readFileSync } from 'node:fs';
+const [patchFile, profile, listFile] = process.argv.slice(2);
+const specName = (spec) => { const at = spec.lastIndexOf('@'); return at > 0 ? spec.slice(0, at) : spec; };
+const specs = existsSync(listFile)
+  ? readFileSync(listFile, 'utf8').split(/\r?\n/)
+      .map((line) => line.replace(/\s+#.*$/, '').trim()).filter((line) => line && !line.startsWith('#'))
+  : [];
+const listed = new Set(specs.map(specName));
+const deps = JSON.parse(readFileSync(profile + '/package.json', 'utf8')).dependencies ?? {};
+const names = [...readFileSync(patchFile, 'utf8').matchAll(/^\s*name:\s*["']?([^"'\s#]+)/gm)].map((m) => m[1]);
+const missing = names.filter((name) => listed.has(name) && deps[name] === undefined);
+if (missing.length > 0) { console.error('missing: ' + missing.join(' ')); process.exit(1); }
+NODE
+  dsh --profile "$PROFILE" --dump-config --patch "$PLAN_PATCH" >/dev/null 2>&1 || PATCH_OK=0
+  if [ "$PATCH_OK" = 1 ]; then
+    PATCH_ARGS="--patch $PLAN_PATCH"
+    echo "[plan] 叠加计划级 patch: $PLAN_PATCH"
+  else
+    echo "[plan] WARN: $PLAN_PATCH 校验失败, 跳过"
+  fi
+fi
+
 # --- 3. 启动 ----------------------------------------------------------------
 case "$ENTRY" in
   web)
@@ -132,11 +160,12 @@ case "$ENTRY" in
     [ -n "${DSH_TRUSTED_HOST:-}" ] && EXTRA="$EXTRA --trusted-host $DSH_TRUSTED_HOST"
     echo "[plan] boot web profile on $BIND"
     # shellcheck disable=SC2086
-    exec dsh --profile "$PROFILE" --no-open --host "$BIND" $EXTRA "$@"
+    exec dsh --profile "$PROFILE" $PATCH_ARGS --no-open --host "$BIND" $EXTRA "$@"
     ;;
   headless)
     echo "[plan] boot headless profile"
-    exec dsh --profile "$PROFILE" "$@"
+    # shellcheck disable=SC2086
+    exec dsh --profile "$PROFILE" $PATCH_ARGS "$@"
     ;;
   *)
     echo "[plan] 未知 PLAN_ENTRY: $ENTRY"
