@@ -1,8 +1,4 @@
-# mesh 的 bundle patch 为空, insert 才会挂载
-# peers/meshSecret/publicUrl/hub 是私有值, 写 $DSH_HOME/mesh-config.json
+# mesh 的 bundle patch 是空数组, insert 才会挂载
 - insert:
     - id: mesh
       name: dsh-workspace-mesh
-      config:
-        transport: auto
-        leaseOwner: mesh-lead

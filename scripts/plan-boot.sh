@@ -146,6 +146,20 @@ NODE
   fi
 fi
 
+# plans/<方向>/config/ 里的文件只在目标不存在时落进 $DSH_HOME
+if [ -d "$DIR/config" ]; then
+  for f in "$DIR"/config/*; do
+    [ -f "$f" ] || continue
+    name="$(basename "$f")"
+    target="${DSH_HOME:-/data/dsh-home}/$name"
+    if [ -e "$target" ]; then
+      echo "[plan] config $name 已存在, 跳过"
+    else
+      cp "$f" "$target" && echo "[plan] config $name 初始化"
+    fi
+  done
+fi
+
 # --- 3. 启动 ----------------------------------------------------------------
 case "$ENTRY" in
   web)

@@ -25,6 +25,7 @@ plans/<方向>/
   plan.env      # PLAN_ENV / PLAN_PROFILE / PLAN_ENTRY + 标题
   plugins.txt   # 每行一个 spec；# 注释
   patch.yml     # 可选：叠加在 profile 层之后（挂载空 bundle patch 的插件 / 非私有默认值）
+  config/       # 可选：首启时拷进 $DSH_HOME 的配置文件（目标已存在就跳过）
 ```
 
 `plan.env` 的有效字段：
@@ -69,6 +70,7 @@ tgz 一次改动要重打一次，但换来的是依赖真的被装上、和发�
                       ├─ dsh --profile <p> --dump-config   # profile 落地
                       ├─ dsh plugin add ...                # 按 plugins.txt 装
                       ├─ dsh --dump-config --patch ...     # 验证 patch.yml, 失败则跳过
+                      ├─ cp config/* -> $DSH_HOME          # 仅首次, 不覆盖已有文件
                       └─ exec dsh --profile <p> ...        # web 或 headless
 ```
 
@@ -82,7 +84,7 @@ tgz 一次改动要重打一次，但换来的是依赖真的被装上、和发�
 | 层 | 放什么 | 在哪 |
 |---|---|---|
 | 计划默认值 | 非私有、谁都能用的配置；空 bundle patch 插件的挂载行 | `plans/<方向>/patch.yml` |
-| 插件自有文件 | mesh 的 peers/publicUrl（`$DSH_HOME/mesh-config.json`）、pet、task-board、workbuddy 等自己写的文件 | 运行期由插件/设置页写 |
+| 插件自有文件 | mesh 的 peers/publicUrl（`$DSH_HOME/mesh-config.json`）、pet、task-board、workbuddy 等自己写的文件 | `plans/<方向>/config/` 首启落地，之后由插件/设置页维护 |
 | 整机迁移 | 私有 provider、凭据、技能、会话、插件数据 | `dsh-config-manager` 导出 → 服务器导入 |
 
 `patch.yml` 只放前两类里"非私有"的部分。私有值（provider baseURL/密钥、mesh 的 peer token 与 meshSecret、本机绝对路径）不进仓库。
@@ -95,7 +97,7 @@ tgz 一次改动要重打一次，但换来的是依赖真的被装上、和发�
 2. 服务器：同一入口导入，冲突逐项决策；导入前它会自动备份当前配置，出错可回滚
 3. `pluginData` 只收声明了 `dsh.dataDirs` 的插件（外加内置取证来源）；pet / task-board / image-gen / whale 这些没声明，不在任何分区里，迁移要手工拷 `$DSH_HOME/<目录>`
 
-注意 `dsh-workspace-mesh`：它的 `cordis.patch.yml` 是空数组，`dsh plugin add` 只装包不挂载，所以挂载行必须写在 `patch.yml` 里。它的 `publicUrl` / `hub` 只认 `mesh-config.json`，写进 patch 会被 schema 丢掉。
+注意 `dsh-workspace-mesh`：0.3.3 在 dsh 0.2.2 上把 volatile 的 peers 直接当数组用，空配置会抛 `options.peers is not iterable`；所以 `plans/full/config/mesh-config.json` 里预置了 `{"peers": []}`。它的 `cordis.patch.yml` 是空数组，`dsh plugin add` 只装包不挂载，所以挂载行必须写在 `patch.yml` 里。它的 `publicUrl` / `hub` 只认 `mesh-config.json`，写进 patch 会被 schema 丢掉。
 
 ## 加一个方向
 
