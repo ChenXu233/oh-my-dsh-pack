@@ -59,10 +59,18 @@ dsh --profile "$PROFILE" --dump-config >/dev/null 2>&1 || \
   echo "[plan] WARN: profile $PROFILE 初始化失败, 继续尝试启动"
 
 # --- 2. 按方向装插件 --------------------------------------------------------
+# ci 方向: profile 已经由 Dockerfile 的 ci 阶段预装到 /opt/ci-profile,
+# 这里只在 DSH_HOME 还没有时拷进去。避免每次冷启都 dsh plugin add。
+PROFILE_DIR="${DSH_HOME:-/data/dsh-home}/profiles/$PROFILE"
+if [ -d "/opt/ci-profile/$PROFILE" ] && [ ! -d "$PROFILE_DIR" ]; then
+  mkdir -p "$(dirname "$PROFILE_DIR")"
+  cp -a "/opt/ci-profile/$PROFILE" "$PROFILE_DIR"
+  echo "[plan] 从预置镜像还原 profile: $PROFILE -> $PROFILE_DIR"
+fi
+
 # 只装"新增/变更"的 spec: profile 里记住上次成功应用的清单(.applied),
 # 启动时和当前 plugins.txt 做 diff; 没变的行跳过, 变了才 add。
 # 这样改一行清单只会装那一行, 不会把整份清单重装一遍。
-PROFILE_DIR="${DSH_HOME:-/data/dsh-home}/profiles/$PROFILE"
 STAMP="$PROFILE_DIR/.plan-$PLAN.stamp"
 APPLIED="$PROFILE_DIR/.plan-$PLAN.applied"
 CUR="$PROFILE_DIR/.plan-$PLAN.current"
@@ -177,7 +185,9 @@ case "$ENTRY" in
     exec dsh --profile "$PROFILE" $PATCH_ARGS --no-open --host "$BIND" $EXTRA "$@"
     ;;
   headless)
-    echo "[plan] boot headless profile"
+    # PLAN_ARGS 让 plan.env 固化 dsh 调用参数(如 --json), 不依赖调用方每次手写
+    set -- $PLAN_ARGS "$@"
+    echo "[plan] boot headless profile args=$*"
     # shellcheck disable=SC2086
     exec dsh --profile "$PROFILE" $PATCH_ARGS "$@"
     ;;

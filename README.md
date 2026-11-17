@@ -35,6 +35,7 @@ Requires Docker + Compose v2. On first start the profile is initialized from the
 | `full` | my complete tuned setup (default) | capable |
 | `chat` | open-and-chat; plugin list to be chosen | slim |
 | `harness` | subscription-grade output self-hosted: docs / sheets / PPT / web research / scheduled tasks; plugin list to be chosen | capable |
+| `ci` | one-shot headless; profile baked into the `:ci` image, zero plugin install at startup | ci |
 
 ```bash
 sudo ./scripts/up.sh                 # full

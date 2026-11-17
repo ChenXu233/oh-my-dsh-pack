@@ -1,0 +1,10 @@
+# syntax=docker/dockerfile:1
+# docker:cache 用：把 npm 装 dsh + pnpm 的产物固化成缓存镜像，
+# main.push 构建 :ci 时通过 --cache-from 复用，省掉每次冷装。
+FROM node:24-bookworm-slim
+ARG DSH_VERSION=next
+ENV NODE_ENV=production NODE_OPTIONS=--max-old-space-size=768
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git ca-certificates tini curl \
+ && rm -rf /var/lib/apt/lists/*
+RUN npm install -g "@deepseek-ai/dsh@${DSH_VERSION}" pnpm@11

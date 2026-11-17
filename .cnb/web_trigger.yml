@@ -1,0 +1,5 @@
+branch:
+  - buttons:
+      - name: 构建 CI 制品包
+        description: 构建并推送 :ci 镜像（预置 headless profile，CI 冷启零安装）
+        event: web_trigger_ci_image

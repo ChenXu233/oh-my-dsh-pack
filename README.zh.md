@@ -35,6 +35,7 @@ sudo docker compose logs dsh | grep 'dsh web:'   # 复制带 token 的登录 URL
 | `full` | 我本人在用的完整风味（默认） | capable |
 | `chat` | 打开就聊；插件清单待选 | slim |
 | `harness` | 订阅版能力自建：文档 / 表格 / PPT / 联网研究 / 定时任务；插件清单待选 | capable |
+| `ci` | 一次性 headless；profile 预置进 `:ci` 镜像，启动零安装 | ci |
 
 ```bash
 sudo ./scripts/up.sh                 # full

@@ -11,10 +11,14 @@
 | `chat` | base | `:slim` | web | web | 待选 | 按需 |
 | `harness` | capable | `:latest` | web | web | 待选 | 按需 |
 | `dev` | base | `:slim` | web | web | 0（空白） | 开发实例 |
+| `ci` | base（预置 profile） | `:ci` | headless | headless | 1（烤进镜像） | 一次性 CI 任务 |
 
 - `full` 是默认方向：`DSH_PLAN` 不设时用它。
 - `chat` / `harness` 的清单先留空，选好插件后写进 `plugins.txt` 即可，不用重建镜像。
 - `dev` 只给 `docker-compose.dev.yml` 用：空白 dsh + `bootstrap-dev` 把源码 `link:` 进来。
+- `ci` 走独立编排 `docker-compose.ci.yml`：headless 一次性任务，profile 在 `:ci` 镜像构建期就装好，
+  启动时零 `dsh plugin add`；`DSH_HOME` 默认用匿名卷，`--rm` 即丢，不跨任务残留。
+  要让多次任务复用已装好的 profile，在环境里设 `CI_DSH_HOME_VOLUME=dsh-ci-home`，compose 会改用具名卷。
 - 环境只有两类：`base`（node + dsh + pnpm + git）和 `capable`（+ Python / LibreOffice / CJK）。
   只有系统依赖不同才需要新镜像；方向不产生镜像。
 
@@ -35,6 +39,7 @@ plans/<方向>/
 | `PLAN_ENV` | `base` / `capable` | `up.sh` 据此选镜像 tag（`:slim` / `:latest`） |
 | `PLAN_PROFILE` | `web` / `headless` | 起 dsh 的哪个 profile |
 | `PLAN_ENTRY` | `web` / `headless` | 常驻 web，还是一次性任务 |
+| `PLAN_ARGS` | 字符串 | 仅 headless：固化 dsh 调用参数（如 `--json`），追加到每次 `exec dsh` 后面 |
 | `PLAN_TITLE` / `PLAN_DESC` | 字符串 | 只用于展示 |
 
 `plugins.txt` 的每行交给 `dsh plugin --profile <profile> add`：npm 包写
@@ -98,6 +103,61 @@ tgz 一次改动要重打一次，但换来的是依赖真的被装上、和发�
 3. `pluginData` 只收声明了 `dsh.dataDirs` 的插件（外加内置取证来源）；pet / task-board / image-gen / whale 这些没声明，不在任何分区里，迁移要手工拷 `$DSH_HOME/<目录>`
 
 注意 `dsh-workspace-mesh`：0.3.3 在 dsh 0.2.2 上把 volatile 的 peers 直接当数组用，空配置会抛 `options.peers is not iterable`；所以 `plans/full/config/mesh-config.json` 里预置了 `{"peers": []}`。它的 `cordis.patch.yml` 是空数组，`dsh plugin add` 只装包不挂载，所以挂载行必须写在 `patch.yml` 里。它的 `publicUrl` / `hub` 只认 `mesh-config.json`，写进 patch 会被 schema 丢掉。
+
+## CI 用法（ci 方向）
+
+CI 的痛点不是"装哪些插件"，而是**每次冷启都装一遍**。ci 方向把这件事挪到镜像构建期：
+
+```
+构建期 (:ci 镜像)                      运行期 (每次 CI 任务)
+  dsh --profile headless --dump-config    从 /opt/ci-profile 拷回 profile（毫秒）
+  dsh plugin add agent-teams               exec dsh --profile headless --json <PLAN_ARGS 之外的参数>
+  cp profile -> /opt/ci-profile            --rm 丢掉 DSH_HOME
+```
+
+### 构建与取镜像
+
+```bash
+# 打 tag 会自动构建并推送 :ci / :<tag>-ci（同时推 :latest/:slim 并部署）
+git tag v0.2.0 && git push cnb v0.2.0
+
+# 或：在 main 分支详情页点「构建 CI 制品包」按钮（web_trigger_ci_image，只推 :ci，不动生产）
+# 本地没有 CI 环境时也能验：
+docker pull docker.cnb.cool/chenxu233/oh-my-dsh-pack:ci
+```
+
+### 一次性跑一个任务
+
+```bash
+CI_WORKSPACE=$PWD DEEPSEEK_API_KEY=xxx \
+  ./scripts/up.sh ci '写一个 bug 报告并写到 /data/workspace/report.md'
+```
+
+`up.sh ci` 会切到 `docker-compose.ci.yml`：
+
+- 当前 checkout 挂到 `/data/workspace`，dsh 直接读写
+- 不分配 TTY（`tty: false`），保住 `--json` 行流，`jq` 能逐行读
+- 不发布端口、不挂 healthcheck、不留后台容器
+- `PLAN_ARGS` 默认 `--json`；调调用方参数走 `./scripts/up.sh ci -a <AGENT> -w <WORKFLOW> "prompt"`
+
+**profile 复用 / 冷启权衡**：默认匿名卷每次丢弃 DSH_HOME，从 `/opt/ci-profile` 拷回（纯本地 IO，毫秒级）。
+若 profile 变大、连拷贝都想省，设 `CI_DSH_HOME_VOLUME=dsh-ci-home` 改用具名卷，第一次之后目录已存在，
+`plan-boot` 连拷都不做。代价是会话历史等状态会跨任务残留；CI 场景通常更在意隔离，默认保持匿名卷。
+
+### headless 的两个坑（CI 必读）
+
+1. **沙箱在容器里不可用，而且失败是静默的。** 内核没开 landlock / bwrap namespace 被拒时，
+   `workspace-write` 会让所有 bash 工具失败，但进程仍然 `exit 0`、输出 `final: done`。
+   ci 方向在 `plan.env` 里直接 `export DSH_PERMISSION_MODE=danger-full-access` +
+   `DSH_APPROVAL_POLICY=never`：容器本身就是边界，没有人能点确认。
+2. **slash 命令在 headless 不执行。** `dsh headless "/review"` 里的 `/review` 是当普通用户消息
+   递进去的，不走 composer 的 command runtime。**所有靠 slash 命令暴露能力的插件在 CI 里等于没装。**
+   实测 headless 基线 24 个工具，只有 `@chenxu233/dsh-agent-teams` 会真加工具（+15），
+   已预置进 `:ci` 镜像；`dsh-gemini-tool-schema` 往 stdout 打印、污染 `--json` 流，别装。
+
+> 退出码：工具失败当前不会改变 dsh 的退出码。CI 要判失败，用仓库自带的
+> `scripts/ci-run.sh`，它跑完会扫 `--json` 流里的 `tool_result.status=error`，
+> 有 error 就 exit 1；没用这个薄壳就得自己解析。
 
 ## 加一个方向
 

@@ -2,13 +2,15 @@
 #
 # 触发策略(重要):
 #   - 推分支(main)  : 构建验证 + 同步镜像到 GitHub。不推镜像、不部署。
-#   - 打 tag(v* 等) : 构建 + 推镜像(:latest/:slim 与 :<tag>/:<tag>-slim) + 同步 tag + SSH 部署。
+#   - 打 tag(v* 等) : 构建 + 推镜像(:latest/:slim/:ci 与 :<tag> 系列) + 同步 tag + SSH 部署。
+#   - web_trigger_ci_image : 手动只构建+推 :ci 制品包，不部署（main 分支详情页按钮）。
 #
 # 镜像分两档环境(见 Dockerfile / docs/PLANS.md):
 #   :latest  = capable  full / harness         (带 Python + LibreOffice + 中文字体)
 #   dev 方向默认走 base → :slim; 插件真需要系统依赖时才改成 capable
 #   :slim    = slim     chat                  (只有 node + dsh + pnpm + git)
-# 两档用同一个 Dockerfile, 只是 --target 不同; 方向(plans/)挂载, 不进镜像。
+# 三档用同一个 Dockerfile, 只是 --target 不同; 方向(plans/)挂载, 不进镜像。
+#   :ci      = base + 预置 headless profile (agent-teams)，一次性任务零冷装。
 #
 # GitHub 镜像: 用官方插件 tencentcom/git-sync 推送。
 #   旧版用 GitLab 的 from_secret 拿 token, CNB 不认, 变量恒为空,
@@ -44,6 +46,12 @@ main:
             docker build --target capable \
               -t oh-my-dsh-pack:verify-capable --build-arg DSH_VERSION=next .
 
+        # ci 档也要验: Dockerfile 里多一段预装 profile, 挂了就早发现
+        - name: build ci image (verify only)
+          script: |
+            docker build --target ci \
+              -t oh-my-dsh-pack:verify-ci --build-arg DSH_VERSION=next .
+
 "v*":
   tag_push:
     - services:
@@ -55,19 +63,23 @@ main:
           script: |
             docker build --target capable -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest --build-arg DSH_VERSION=next .
             docker build --target slim -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:slim --build-arg DSH_VERSION=next .
+            docker build --target ci -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:ci --build-arg DSH_VERSION=next .
 
         - name: push image
           script: |
             docker login docker.cnb.cool -u cnb -p "$CNB_TOKEN"
             docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest
             docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:slim
+            docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:ci
             # tag 名同时作为镜像 tag, 方便回滚到指定版本
             TAG="${CNB_BRANCH:-unknown}"
             docker tag docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest docker.cnb.cool/chenxu233/oh-my-dsh-pack:$TAG
             docker tag docker.cnb.cool/chenxu233/oh-my-dsh-pack:slim   docker.cnb.cool/chenxu233/oh-my-dsh-pack:$TAG-slim
+            docker tag docker.cnb.cool/chenxu233/oh-my-dsh-pack:ci     docker.cnb.cool/chenxu233/oh-my-dsh-pack:$TAG-ci
             docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:$TAG
             docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:$TAG-slim
-            echo "pushed: latest, slim, $TAG, $TAG-slim"
+            docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:$TAG-ci
+            echo "pushed: latest, slim, ci, $TAG, $TAG-slim, $TAG-ci"
 
         # tag 也要同步, 否则 GitHub 上没有可回滚的版本点
         - name: sync tag to github
@@ -100,3 +112,34 @@ main:
               # 服务器上的 key 带 command= 强制项, 只能执行 ~/bin/dsh-deploy.sh
               # (同 repo 的 deploy/dsh-deploy.sh); 这里不发远程命令, 发了也会被忽略。
               ssh -i /tmp/k -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 "ubuntu@$DEPLOY_HOST"
+
+# 手动构建 CI 制品包：只推 :ci 镜像，不碰 :latest/:slim，也不触发部署。
+# 用法：在 main 分支详情页点 "构建 CI 制品包" 按钮。
+$:
+  web_trigger_ci_image:
+    - services:
+        - docker
+      stages:
+        - name: build ci cache
+          type: docker:cache
+          options:
+            dockerfile: Dockerfile.cache
+            by: Dockerfile.cache
+            buildArgs:
+              DSH_VERSION: next
+            sync: true
+          exports:
+            name: CI_CACHE_IMAGE
+        - name: build and push :ci
+          script: |
+            echo "cache image: ${CI_CACHE_IMAGE:-<none>}"
+            CACHE_FROM=""
+            [ -n "${CI_CACHE_IMAGE:-}" ] && CACHE_FROM="--cache-from $CI_CACHE_IMAGE"
+            docker build --target ci \
+              ${CACHE_FROM} \
+              -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:ci \
+              --build-arg DSH_VERSION=next \
+              .
+            docker login docker.cnb.cool -u cnb -p "$CNB_TOKEN"
+            docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:ci
+            echo "pushed: docker.cnb.cool/chenxu233/oh-my-dsh-pack:ci"

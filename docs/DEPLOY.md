@@ -8,7 +8,7 @@
 |---|---|---|
 | 环境 | `Dockerfile` | 重建镜像 + 打 tag |
 | 方向 | `plans/<方向>/` | `git pull` + 重启容器（挂载，不重建镜像） |
-| 实例 | `docker-compose.yml` / `docker-compose.dev.yml` | `git pull` + `up -d` |
+| 实例 | `docker-compose.yml` / `docker-compose.dev.yml` / `docker-compose.ci.yml` | `git pull` + `up -d` |
 | 启动逻辑 | `entrypoint.sh` / `scripts/plan-boot.sh` | 重建镜像 + tag |
 | 状态 | named volumes | 不动 |
 
@@ -38,11 +38,11 @@ sudo docker compose logs dsh | grep 'dsh web:'   # 拿带 token 的登录 URL
 
 ```bash
 git add -A && git commit -m "..."
-git push cnb main          # 验证：只构建 capable
-git tag v0.2.0 && git push cnb v0.2.0   # 上线：构建两档 + 推 + 部署
+git push cnb main          # 验证：构建 capable + ci
+git tag v0.2.0 && git push cnb v0.2.0   # 上线：构建 :latest/:slim/:ci + 推 + 部署
 ```
 
-tag 流水线：构建 `:latest`（capable）与 `:slim`（base）→ 推 `docker.cnb.cool` →
+tag 流水线：构建 `:latest`（capable）、`:slim`（base）与 `:ci`（预置 profile）→ 推 `docker.cnb.cool` →
 SSH 上服务器执行 `~/bin/dsh-deploy.sh`（git pull → docker login → compose pull →
 `up -d --force-recreate`）。
 

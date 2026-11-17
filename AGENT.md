@@ -18,17 +18,18 @@
 | `docker-compose.dev.yml` | 开发实例: 独立 project/卷/端口 + 挂源码 | 改开发编排 |
 | `scripts/up.sh` | 选方向启动 / 起开发实例 | 启动 |
 | `scripts/sync-plugin.ps1` | 本地 build → scp → 重启开发实例 | 每轮迭代 |
-| `Dockerfile` | node24 + dsh + pnpm; 两档环境(`slim`/`capable`), 改它必须重建镜像 | 改运行环境 / 加系统依赖 |
+| `Dockerfile` | node24 + dsh + pnpm; 三档(`slim`/`capable`/`ci`), 改它必须重建镜像 | 改运行环境 / 加系统依赖 |
+| `docker-compose.ci.yml` | CI 一次性编排: headless, 无 TTY, 当前 checkout 挂 /data/workspace | 改 CI 运行方式 |
+| `Dockerfile.cache` + `.cnb/web_trigger.yml` | `docker:cache` 缓存底座 + 「构建 CI 制品包」按钮 | 改 CI 制品构建 |
 
 ## 1. 主仓库是 CNB, GitHub 只是镜像
 
-**规矩: 提交后只推 CNB(`git push cnb main`), 不要推 GitHub。**
+**规矩: 提交后只推 CNB(`git push origin main`), 不要推 GitHub。**
 GitHub 是流水线用 `tencentcom/git-sync` 推过去的镜像, 手工往 GitHub 推会和流水线抢同一个 ref。
 
 | 远端 | 角色 | 说明 |
 |---|---|---|
-| `cnb` (`cnb.cool/ChenXu233/oh-my-dsh-pack`) | **唯一真源** | 镜像在这里构建, 流水线在这里跑 |
-| `origin` (GitHub) | 只读镜像 | 由 `main.push` / tag 流水线推过去; 不参与构建、部署, 服务器也不从它拉 |
+| `origin` (CNB) | **唯一真源** | 镜像在这里构建, 流水线在这里跑; GitHub 只是流水线推过去的镜像 |
 
 理由: 镜像由 CNB 构建并推到 `docker.cnb.cool`, 服务器拉的是这个制品库; 两边同时部署会竞争推送。
 镜像靠密钥仓库的 `github-sync.yml`(GITHUB_USERNAME / GITHUB_TOKEN); 没有它同步阶段会失败, 不会再静默跳过。
@@ -37,10 +38,11 @@ GitHub 是流水线用 `tencentcom/git-sync` 推过去的镜像, 手工往 GitHu
 
 | 动作 | 发生什么 | 是否动生产 |
 |---|---|---|
-| 推分支 `git push cnb main` | 同步 GitHub 镜像 + 构建 capable 验证 | ❌ 不动 |
-| 推 tag `git push cnb v0.2.0` | 构建两档 → 推 `:latest`/`:slim` + `:v0.2.0`/`:v0.2.0-slim` → SSH 部署 | ✅ 动 |
+| 推分支 `git push origin main` | 同步 GitHub 镜像 + 构建 capable/ci 验证 | ❌ 不动 |
+| 推 tag `git push origin v0.2.0` | 构建三档 → 推 `:latest`/`:slim`/`:ci` + 版本 tag → SSH 部署 | ✅ 动 |
 
-- push 阶段只构建 capable: `slim` 就是 base 加空行, capable 能过则 slim 必过。
+- push 阶段只构建 capable + ci: `slim` 就是 base 加空行, capable 能过则 slim 必过; ci 是预置 profile 档，单独验。
+- 推 tag 额外推 `:ci` / `:<tag>-ci` 制品包；也可在 main 分支详情页点「构建 CI 制品包」只推 `:ci`（不动生产）。
 - `.cnb.yml` 里 `main: push:` 只允许 build + sync; 绝不能引用 `dsh-deploy.yml`。
 - 部署脚本会 `up -d --force-recreate`: 方向目录是挂载的, 只改清单时镜像不变,
   不强制重建容器就不会重跑 plan-boot。

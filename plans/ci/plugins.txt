@@ -1,0 +1,15 @@
+# ci 方向的插件清单 —— 默认空，不写多行。
+# ---------------------------------------------------------------------------
+# 实测：headless 基线 24 个工具；只有 @chenxu233/dsh-agent-teams 会真加工具
+# （+15 个 agent_teams_*）。它已经由 Dockerfile 的 ci 阶段 预装进 :ci 镜像的
+# headless profile，所以这里有意留空，让容器启动时零 dsh plugin add。
+#
+# 要临时加包：写进本文件后要重建 :ci 镜像才会预置进去；否则运行时 add
+# 又回到"每次启动都装"，正是 ci 方向要消灭的慢点。
+# 只换 provider（不加工具）的可选项，不预装：
+#   @tonydua/dsh-web-search-exa   # 换 web provider，可能有帮助
+#   dsh-key-rotation              # 多 key 轮询时才用
+# 明确不要：
+#   dsh-gemini-tool-schema        # 往 stdout 打印，污染 --json 流
+#   slash 命令类插件              # headless 不走 composer command runtime
+# ---------------------------------------------------------------------------

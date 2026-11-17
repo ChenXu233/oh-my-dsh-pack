@@ -57,6 +57,24 @@ ENTRYPOINT ["/usr/bin/tini", "--", "/opt/entrypoint.sh"]
 FROM base AS slim
 
 # ============================================================================
+# ci: headless 专用档 (预置 profile, 容器启动零 dsh plugin add)
+# ----------------------------------------------------------------------------
+# CI 每次冷启都装插件太慢, 这一档在 build 期就把 headless profile 和实测唯一
+# 有用的 agent-teams 装好, 存到 /opt/ci-profile (非 VOLUME)。
+# 不能写 /data/dsh-home: 那是 VOLUME, 构建期写入在运行时会被空卷盖掉。
+# plan-boot 启动 ci 方向时从 /opt/ci-profile 本地拷进 DSH_HOME (毫秒级 IO)。
+# ============================================================================
+FROM base AS ci
+USER root
+RUN mkdir -p /opt/ci-home /opt/ci-profile \
+ && DSH_HOME=/opt/ci-home dsh --profile headless --dump-config >/dev/null \
+ && DSH_HOME=/opt/ci-home dsh plugin --profile headless add "@chenxu233/dsh-agent-teams@0.2.4" \
+ && cp -a /opt/ci-home/profiles/headless /opt/ci-profile/headless \
+ && rm -rf /opt/ci-home \
+ && chown -R node:node /opt/ci-profile
+USER node
+
+# ============================================================================
 # capable: 能"出东西"的一档 (full / harness / dev)
 # ============================================================================
 FROM base AS capable

@@ -1,0 +1,37 @@
+# CI/headless 专用编排：一次性任务，不留后台服务、不发布端口。
+# 由 `./scripts/up.sh ci` 自动选中，也可被外部 CI 直接引用。
+name: harness-ci
+
+services:
+  dsh:
+    image: ${DSH_IMAGE:-docker.cnb.cool/chenxu233/oh-my-dsh-pack:ci}
+    build:
+      context: .
+      target: ci
+      args:
+        DSH_VERSION: ${DSH_VERSION:-next}
+    # profile 已烤进镜像；DSH_HOME 用匿名卷，任务结束 --rm 即丢，
+    # 下次冷启从 /opt/ci-profile 还原，不跨任务残留状态。
+    volumes:
+      # 默认匿名卷：每次 --rm 即丢，从 /opt/ci-profile 重新拷回（毫秒级）。
+      # 设 CI_REUSE_DSH_HOME=1 改用具名卷 dsh-ci-home，跨任务复用已还原的 profile。
+      - ${CI_DSH_HOME_VOLUME:-dsh-ci-home}:/data/dsh-home
+      - ./plans:/opt/plans:ro
+      # 当前 checkout 挂进容器，dsh 可直接读写 CI workspace
+      - ${CI_WORKSPACE:-.}:/data/workspace
+    environment:
+      DSH_PLAN: ${DSH_PLAN:-ci}
+      DSH_PERMISSION_MODE: ${DSH_PERMISSION_MODE:-danger-full-access}
+      DSH_APPROVAL_POLICY: ${DSH_APPROVAL_POLICY:-never}
+      # 模型 key 由调用方注入，不写死在镜像/仓库
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      # 透传任意 dsh 变量（如 -e DSH_HOME=...）
+      DSH_ARGS: ${DSH_ARGS:-}
+    working_dir: /data/workspace
+    mem_limit: ${DSH_MEM_LIMIT:-2g}
+    # 关键：不分配 TTY，保住 --json 行流，jq 才能逐行解析
+    tty: false
+    stdin_open: false
+
+volumes:
+  dsh-ci-home:

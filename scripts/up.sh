@@ -38,6 +38,7 @@ fi
 case "${PLAN_ENV:-capable}" in
   capable) IMAGE_TAG=latest; BUILD_TARGET=capable ;;
   base)    IMAGE_TAG=slim;   BUILD_TARGET=slim ;;
+  ci)      IMAGE_TAG=ci;     BUILD_TARGET=ci ;;
   *)
     echo "plans/$PLAN/plan.env 的 PLAN_ENV 非法: ${PLAN_ENV}"
     exit 1
@@ -72,7 +73,8 @@ export DSH_IMAGE="$IMAGE"
 export DSH_TARGET="$BUILD_TARGET"
 
 if [ "${PLAN_ENTRY:-web}" = "headless" ]; then
-  exec docker compose run --rm dsh "$@"
+  COMPOSE_FILE="${CI_COMPOSE_FILE:-docker-compose.ci.yml}"
+  exec docker compose -f "$COMPOSE_FILE" run --rm dsh "$@"
 fi
 
 exec docker compose up -d $BUILD_FLAG "$@"
