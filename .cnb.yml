@@ -85,7 +85,7 @@ main:
         # 删除 tag 后未引用 blob 由制品库 GC 回收; Git tag 仍可追溯并按需重建任意版本。
         - name: prune artifact tags older than 3 months
           image: node:22-alpine
-          imports: https://cnb.cool/ChenXu233/secrets/-/blob/main/registry.yml
+          imports: https://cnb.cool/ChenXu233/secrets/-/blob/main/ohmydsh-registry.yml
           script: |
             set -eu
             : "${CNB_TOKEN:?缺少 CNB_TOKEN}"
