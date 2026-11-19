@@ -81,6 +81,26 @@ main:
             docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:$TAG-ci
             echo "pushed: latest, slim, ci, $TAG, $TAG-slim, $TAG-ci"
 
+        # 保留窗口外的历史 tag 交给制品库 GC; Git tag 仍可追溯并按需重建任意版本
+        - name: prune old artifact tags
+          type: artifact:remove-tag
+          options:
+            name: oh-my-dsh-pack
+            type: docker
+            tags:
+              - v0.1.0
+              - v0.1.0-slim
+              - v0.1.0-rc1
+              - v0.1.0-rc1-slim
+              - v0.1.0-rc3
+              - v0.1.0-rc3-slim
+              - v0.1.0-rc4
+              - v0.1.0-rc4-slim
+              - v0.1.1
+              - v0.1.1-slim
+              - v0.1.2
+              - v0.1.2-slim
+
         # tag 也要同步, 否则 GitHub 上没有可回滚的版本点
         - name: sync tag to github
           imports: https://cnb.cool/ChenXu233/secrets/-/blob/main/github-sync.yml
