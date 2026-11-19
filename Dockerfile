@@ -23,18 +23,17 @@ ENV NODE_ENV=production
 ENV NODE_OPTIONS=--max-old-space-size=768
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends git ca-certificates tini curl \
+ && apt-get install -y --no-install-recommends git ca-certificates tini \
  && rm -rf /var/lib/apt/lists/*
 
 # node 镜像自带 UID 1000 的 node 用户, 直接复用 (useradd -u 1000 会因 UID 冲突失败)
 RUN mkdir -p /data/dsh-home /data/workspace \
  && chown -R node:node /data
 
-RUN npm install -g "@deepseek-ai/dsh@${DSH_VERSION}" && dsh --version
-
-# dsh plugin 只是把参数转发给 PATH 上的 pnpm, 没有 pnpm 插件预装与 link 安装都会失败
-# (官方运行时内置的是 pnpm 11, 这里对齐大版本, 避免 lockfile 格式不兼容)
-RUN npm install -g pnpm@11 && pnpm --version
+# dsh 把插件管理委托给 pnpm, slim/full/dev 首启要装插件, 所以 pnpm 必须可用。
+# 保留全局安装: `dsh plugin` 直接执行 PATH 上的 pnpm, 这里对齐官方运行时大版本。
+RUN npm install -g "@deepseek-ai/dsh@${DSH_VERSION}" pnpm@11 \
+ && dsh --version && pnpm --version && npm cache clean --force
 
 ENV DSH_HOME=/data/dsh-home
 WORKDIR /data/workspace
@@ -66,11 +65,18 @@ FROM base AS slim
 # ============================================================================
 FROM base AS ci
 USER root
+
+# 构建期用 base 已装好的 pnpm 预置 profile; 保留 pnpm 供用户后续 dsh plugin add。
+# 只清理全局 npm 包树里的开发和 sourcemap 文件: ci 运行时只用转译后的 js/cjs,
+# 不碰插件目录、dsh 配置和 PATH 上的 pnpm, 也不改变 slim/capable。
 RUN mkdir -p /opt/ci-home /opt/ci-profile \
  && DSH_HOME=/opt/ci-home dsh --profile headless --dump-config >/dev/null \
  && DSH_HOME=/opt/ci-home dsh plugin --profile headless add "@chenxu233/dsh-agent-teams@0.2.4" \
- && cp -a /opt/ci-home/profiles/headless /opt/ci-profile/headless \
- && rm -rf /opt/ci-home \
+ && find "$(npm root -g)" -type f \
+      \( -name '*.map' \
+         -o \( -name '*.ts' -o -name '*.cts' -o -name '*.mts' -o -name '*.tsx' \) ! -name '*.d.ts' \
+      \) -delete \
+ && rm -rf /opt/ci-home /root/.npm /root/.cache/pnpm \
  && chown -R node:node /opt/ci-profile
 USER node
 
