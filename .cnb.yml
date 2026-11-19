@@ -115,6 +115,67 @@ main:
             docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:$TAG-ci
             echo "pushed: latest, slim, ci, $TAG, $TAG-slim, $TAG-ci"
 
+        # 按发布时间保留最近三个月版本 tag; 滚动 tag 不动。
+        # 删除 tag 后未引用 blob 由制品库 GC 回收; Git tag 仍可追溯并按需重建任意版本。
+        - name: prune artifact tags older than 3 months
+          image: node:22-alpine
+          imports: https://cnb.cool/ChenXu233/secrets/-/blob/main/ohmydsh-registry.yml
+          script: |
+            set -eu
+            : "${CNB_TOKEN:?缺少 CNB_TOKEN}"
+            export API="https://api.cnb.cool"
+            export SLUG="ChenXu233/oh-my-dsh-pack"
+            export PKG="oh-my-dsh-pack"
+            d=$(date -u +%Y-%m-%d) && y=$(date -u -d "$d - 3 months" +%Y) && m=$(date -u -d "$d - 3 months" +%-m)
+            export CUTOFF="$(date -u -d "${y}-${m}-01" +%Y-%m-%dT%H:%M:%SZ)"
+            node <<'NODE'
+            const cutoff = new Date(process.env.CUTOFF);
+            const api = process.env.API;
+            const slug = process.env.SLUG;
+            const pkg = process.env.PKG;
+            const token = process.env.CNB_TOKEN;
+            const headers = { Accept: 'application/json', Authorization: `Bearer ${token}` };
+            const rolling = new Set(['latest', 'slim', 'ci']);
+
+            async function request(path, init) {
+              const res = await fetch(`${api}${path}`, init);
+              if (!res.ok) throw new Error(`HTTP ${res.status} ${path}: ${await res.text()}`);
+              return res.status === 204 ? null : res.json();
+            }
+
+            async function main() {
+              let page = 1;
+              let deleted = 0;
+              while (true) {
+                const data = await request(
+                  `/${slug}/-/packages/docker/${pkg}/-/tags?ordering=last_push_at&page=${page}&page_size=100`,
+                  { headers },
+                );
+                const tags = data?.docker || data?.tags || [];
+                if (!tags.length) break;
+                for (const tag of tags) {
+                  const name = tag.name;
+                  if (!name || rolling.has(name) || !/^v\d/.test(name)) continue;
+                  const pushedAt = tag.last_pusher?.push_at;
+                  if (!pushedAt || new Date(pushedAt) >= cutoff) continue;
+                  await request(
+                    `/${slug}/-/packages/docker/${pkg}/-/tag/${encodeURIComponent(name)}`,
+                    { method: 'DELETE', headers },
+                  );
+                  console.log(`deleted stale artifact tag: ${name} (${pushedAt})`);
+                  deleted++;
+                }
+                page++;
+              }
+              console.log(`artifact tag prune done: deleted ${deleted}, cutoff ${cutoff.toISOString()}`);
+            }
+
+            main().catch((error) => {
+              console.error(error.message);
+              process.exit(1);
+            });
+            NODE
+
         # tag 也要同步, 否则 GitHub 上没有可回滚的版本点
         - name: sync tag to github
           imports: https://cnb.cool/ChenXu233/secrets/-/blob/main/github-sync.yml
