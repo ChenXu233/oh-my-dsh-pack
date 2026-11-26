@@ -10,7 +10,7 @@
 #
 # 环境变量:
 #   DSH_PLAN        方向名, 默认 full
-#   DSH_PLANS_DIR   方向目录, 默认 /opt/plans（compose 挂载）
+#   DSH_PLANS_DIR   方向目录(可选): 不设就按下面的顺序自己找
 #   DSH_PUBLIC_URL  web 入口对外地址(可选)
 #   DSH_TRUSTED_HOST 额外信任的 authority(可选)
 #   DSH_BIND_HOST   绑定地址, 默认取容器第一个 IP
@@ -18,19 +18,47 @@
 set -e
 
 PLAN="${DSH_PLAN:-full}"
-PLANS_DIR="${DSH_PLANS_DIR:-/opt/plans}"
+
+# --- 0. 方向目录从哪来 -------------------------------------------------------
+# 顺序: 显式指定 > compose 挂载 > 镜像内嵌默认值 > git 工作区里的 plans/。
+# 云原生开发没有 compose、也挂不了宿主目录(源码是 checkout 出来的), 依赖挂载
+# 的写法在那儿必然启动失败; 内嵌默认值保证任何没有 plans/ 的环境都能起来。
+PLANS_DIR=""
+PLANS_FALLBACK=""
+if [ -n "${DSH_PLANS_DIR:-}" ]; then
+  PLANS_DIR="$DSH_PLANS_DIR"
+  if [ ! -d "$PLANS_DIR/$PLAN" ]; then
+    echo "[plan] 没有 $DSH_PLANS_DIR/$PLAN: DSH_PLANS_DIR 指向了不存在的方向"
+    echo "[plan] 该目录里有: $(ls "$DSH_PLANS_DIR" 2>/dev/null | tr '\n' ' ')"
+    exit 1
+  fi
+else
+  for c in /opt/plans /opt/plans-default; do
+    if [ -d "$c/$PLAN" ]; then
+      PLANS_DIR="$c"
+      break
+    fi
+  done
+  if [ -z "$PLANS_DIR" ] && [ -d "/data/workspace/plans/$PLAN" ]; then
+    PLANS_DIR=/data/workspace/plans
+    PLANS_FALLBACK=1
+  fi
+  # 兜底: 工作区里只要有 plans/, 就直接用(checkout 出来的源码就带这份)。
+  # 不能只认 DSH_PLANS_DIR —— 没有挂载的环境里, 这个变量通常也没人设。
+  if [ -z "$PLANS_DIR" ] && [ -n "${DSH_HOST_WORKSPACE:-}" ] && [ -d "$DSH_HOST_WORKSPACE/plans/$PLAN" ]; then
+    PLANS_DIR="$DSH_HOST_WORKSPACE/plans"
+    PLANS_FALLBACK=1
+  fi
+  if [ -z "$PLANS_DIR" ]; then
+    echo "[plan] 找不到任何 plans/ 目录(试过 /opt/plans、/opt/plans-default、/data/workspace/plans)"
+    echo "[plan] 挂载方式: docker compose 的 ./plans:/opt/plans:ro"
+    echo "[plan] 或者用 DSH_PLANS_DIR=/abs/path/plans 显式指定"
+    exit 1
+  fi
+fi
+
 DIR="$PLANS_DIR/$PLAN"
-
-if [ ! -d "$PLANS_DIR" ]; then
-  echo "[plan] 没有 $PLANS_DIR: compose 需要挂载 ./plans:/opt/plans:ro"
-  exit 1
-fi
-
-if [ ! -d "$DIR" ]; then
-  echo "[plan] 未知方向: $PLAN"
-  echo "[plan] 可用方向: $(ls "$PLANS_DIR" 2>/dev/null | tr '\n' ' ')"
-  exit 1
-fi
+[ -n "$PLANS_FALLBACK" ] && echo "[plan] 用工作区里的方向目录: $PLANS_DIR(镜像内嵌默认值之外的兜底)"
 
 # shellcheck disable=SC1090
 . "$DIR/plan.env"

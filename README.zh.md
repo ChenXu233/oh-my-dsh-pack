@@ -45,6 +45,8 @@ sudo ./scripts/up.sh harness
 
 `capable` 档多带 Python + LibreOffice + 中文字体，用于做文档和 PPT；只想聊天用 `slim` 就够。
 方向是数据：`plans/<方向>/plugins.txt` 挂载进容器，改清单只需 git pull + 重启，不用重建镜像。
+镜像里另外内嵌一份 `plans/` 到 `/opt/plans-default` 当兜底 —— 没有 compose、挂不了宿主目录的环境
+（例如云原生开发）也能起来；容器里优先读挂载的 `/opt/plans`。
 
 部署到你自己的域名时，在 `.env` 里设 `DSH_PUBLIC_URL` / `DSH_TRUSTED_HOST`（或同名环境变量）。
 细节见 [docs/PLANS.md](docs/PLANS.md)。
@@ -56,6 +58,7 @@ sudo ./scripts/up.sh harness
 | `Dockerfile` | node:24-slim + 全局 dsh，非 root，堆内存封顶；两档环境（`slim` / `capable`） |
 | `entrypoint.sh` | 跑 bootstrap → 交给 `scripts/plan-boot.sh` 按方向启动 |
 | `plans/<方向>/` | **编辑我**：方向定义（`plan.env`）+ 预装插件清单（`plugins.txt`）+ 计划级 patch（`patch.yml`）；挂载，不烤进镜像 |
+| `scripts/bake-plans.sh` | 构建期把 `plans/` 铺一份到 `/opt/plans-default`，兜底没有挂载的环境 |
 | `scripts/up.sh` | 选一个方向启动（或起开发实例） |
 | `docs/PLANS.md` | 方向矩阵、加方向/切方向的步骤 |
 | `docs/DEPLOY.md` | 部署、发布、回滚、密钥、排错 |

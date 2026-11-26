@@ -3,6 +3,12 @@
 一个镜像只装**环境**；方向是**数据**，运行时由 `scripts/plan-boot.sh` 装插件并起服务。
 方向目录由 compose 挂载进容器（`./plans:/opt/plans:ro`），**改清单不需要重建镜像**。
 
+镜像里另外内嵌一份方向默认值（`/opt/plans-default`），给没有 compose、也挂不了宿主目录的
+环境兜底（例如云原生开发：源码是 checkout 出来的，`/opt/plans` 天然不存在）。
+`plan-boot.sh` 的查找顺序是：`DSH_PLANS_DIR` 显式指定 → `/opt/plans`（compose 挂载）→
+`/opt/plans-default`（镜像内嵌）→ `<工作区>/plans`（`/data/workspace/plans` 或
+`DSH_HOST_WORKSPACE/plans`）。所以**挂载了就用挂载的**，内嵌那份只是最后一道防线。
+
 ## 矩阵
 
 | 方向 | 环境 | 镜像 tag | profile | 入口 | 预装 | 实例 |
@@ -71,7 +77,8 @@ tgz 一次改动要重打一次，但换来的是依赖真的被装上、和发�
                  ├─ /opt/bootstrap/*.sh        # 镜像内初始化
                  ├─ /opt/dev/*.sh              # 只有开发实例挂载
                  └─ /opt/scripts/plan-boot.sh
-                      ├─ source /opt/plans/<方向>/plan.env
+                      ├─ 选方向目录: DSH_PLANS_DIR > /opt/plans > /opt/plans-default > <工作区>/plans
+                      ├─ source <方向目录>/<方向>/plan.env
                       ├─ dsh --profile <p> --dump-config   # profile 落地
                       ├─ dsh plugin add ...                # 按 plugins.txt 装
                       ├─ dsh --dump-config --patch ...     # 验证 patch.yml, 失败则跳过

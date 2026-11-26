@@ -61,7 +61,10 @@ GitHub 是流水线用 `tencentcom/git-sync` 推过去的镜像, 手工往 GitHu
 | 启动逻辑 | `entrypoint.sh` / `scripts/plan-boot.sh` | 重建镜像 + tag |
 | 状态 | named volumes | 不动 |
 
-- **镜像只装环境**: 方向清单不烤进镜像(`COPY plans/` 已删); 改清单不用重建。
+- **镜像只装环境**: 方向清单不烤进镜像; 改清单不用重建。
+  唯一的例外是 `scripts/bake-plans.sh` 在构建期把 `plans/` 铺一份到 `/opt/plans-default`,
+  **只作为没挂载时的兜底**(云原生开发没有 compose, `/opt/plans` 不存在时入口脚本会直接退出 1)。
+  平时容器启动优先读挂载的 `/opt/plans`, 内嵌那份不参与, 所以改清单依然不用重建镜像。
 - **开发实例是第二个 compose 栈**, 不是第二个镜像: project `harness-dev`、卷 `dsh-dev-*`、端口 3211。
 - **开发实例默认用 base 档(`:slim`)**: 迭代要快, 大多数插件用不到 LibreOffice/Python/CJK。
   某个插件确实需要系统依赖时改 `plans/dev/plan.env` 的 `PLAN_ENV`, 并写下是哪个插件要的 ——
@@ -134,6 +137,9 @@ GitHub 是流水线用 `tencentcom/git-sync` 推过去的镜像, 手工往 GitHu
 
 - **方向目录是挂载的**: 改 `plans/**` 后要 `up -d --force-recreate`(或 `restart dsh`),
   镜像不变时 compose 不会自己重启。
+- **没有挂载也能起来**: `plan-boot.sh` 找方向目录的顺序是「`DSH_PLANS_DIR` → `/opt/plans` →
+  `/opt/plans-default`(镜像内嵌) → `<工作区>/plans`」。云原生开发这类环境没有 compose,
+  靠的是内嵌那份或 checkout 出来的 `plans/`; 改了 `plans/**` 想让没挂载的环境生效, 得重建镜像。
 - **计划级 patch**: `plans/<方向>/patch.yml` 由 plan-boot 以 `dsh --patch` 叠在 profile 层之后，用于挂载 bundle patch 为空的插件（如 mesh）和非私有默认值；加载前先 `--dump-config` 验证，失败只 WARN 不阻断启动。
 - **plan-boot 按 diff 装插件**: 它把当前清单和上次成功应用的 `.plan-<方向>.applied` 比较,
   只 add 新增/变更的行, 没变的跳过; 从清单删掉的行只提示不卸载。所以改一行清单只会装那一行,

@@ -8,7 +8,9 @@
 # Python 库和 LibreOffice), 装插件装不出来。把 LibreOffice 塞进所有档位
 # 又会让只想聊天的人白扛 1G+。
 #
-# 方向(plans/)不烤进镜像: compose 挂载 ./plans:/opt/plans:ro, 改清单不用重建。
+# 方向(plans/)的日常来源是挂载: compose 挂 ./plans:/opt/plans:ro, 改清单不用重建。
+# 镜像里另外内嵌一份默认值到 /opt/plans-default(见 scripts/bake-plans.sh):
+# 云原生开发这类没有 compose、也挂不了宿主目录的环境, 靠它才起得来。
 ARG DSH_VERSION=next
 
 # ============================================================================
@@ -39,11 +41,16 @@ ENV DSH_HOME=/data/dsh-home
 WORKDIR /data/workspace
 
 # 启动逻辑 + 镜像内初始化: 两档共用, 差别只在系统依赖。
-# 方向(plans/)是数据, 由 compose 挂载, 不 COPY 进镜像。
 COPY --chown=node:node scripts/plan-boot.sh /opt/scripts/plan-boot.sh
 COPY --chown=node:node bootstrap/ /opt/bootstrap/
 COPY --chown=node:node entrypoint.sh /opt/entrypoint.sh
-RUN chmod +x /opt/bootstrap/*.sh /opt/scripts/*.sh /opt/entrypoint.sh 2>/dev/null || true
+# 方向数据的内嵌默认值: 兜底没有挂载的环境(云原生开发没有 compose, 挂不了宿主目录)。
+# 注意 .dockerignore 排了 plans/, 构建上下文里没有它 —— 脚本改从 .git 读 HEAD 的
+# plans/, 读不到就跳过(挂载方式不受影响)。
+COPY --chown=node:node scripts/bake-plans.sh /tmp/bake-plans.sh
+RUN chmod +x /opt/bootstrap/*.sh /opt/scripts/*.sh /opt/entrypoint.sh /tmp/bake-plans.sh 2>/dev/null || true \
+ && sh /tmp/bake-plans.sh /opt/plans-default \
+ && rm -f /tmp/bake-plans.sh
 
 USER node
 VOLUME ["/data/dsh-home", "/data/workspace"]
