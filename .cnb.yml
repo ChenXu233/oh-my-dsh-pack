@@ -56,7 +56,6 @@ main:
           exports:
             tag: NEW_TAG
 
-main:
   push:
     - services:
         - docker
