@@ -3,6 +3,8 @@
 # 实测：headless 基线 24 个工具；只有 @chenxu233/dsh-agent-teams 会真加工具
 # （+15 个 agent_teams_*）。它已经由 Dockerfile 的 ci 阶段 预装进 :ci 镜像的
 # headless profile，所以这里有意留空，让容器启动时零 dsh plugin add。
+# 注意：dsh 0.2.3 起它激活失败（cordis 4.2 的 ctx.root 变更），工具暂缺；
+# 详见 docs/PLANS.md「已知问题」。预装保留，插件修好后自动恢复。
 #
 # 要临时加包：写进本文件后要重建 :ci 镜像才会预置进去；否则运行时 add
 # 又回到"每次启动都装"，正是 ci 方向要消灭的慢点。

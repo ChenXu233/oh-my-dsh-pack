@@ -9,7 +9,7 @@ services:
       context: .
       target: ci
       args:
-        DSH_VERSION: ${DSH_VERSION:-next}
+        DSH_VERSION: ${DSH_VERSION:-0.2.3-alpha.3}
     # profile 已烤进镜像；DSH_HOME 用匿名卷，任务结束 --rm 即丢，
     # 下次冷启从 /opt/ci-profile 还原，不跨任务残留状态。
     volumes:

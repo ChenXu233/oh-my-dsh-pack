@@ -77,13 +77,13 @@ main:
         - name: build image (verify only, not released)
           script: |
             docker build --target capable \
-              -t oh-my-dsh-pack:verify-capable --build-arg DSH_VERSION=next .
+              -t oh-my-dsh-pack:verify-capable --build-arg DSH_VERSION=0.2.3-alpha.3 .
 
         # ci 档也要验: Dockerfile 里多一段预装 profile, 挂了就早发现
         - name: build ci image (verify only)
           script: |
             docker build --target ci \
-              -t oh-my-dsh-pack:verify-ci --build-arg DSH_VERSION=next .
+              -t oh-my-dsh-pack:verify-ci --build-arg DSH_VERSION=0.2.3-alpha.3 .
 
 "v*":
   tag_push:
@@ -94,9 +94,9 @@ main:
       stages:
         - name: build image
           script: |
-            docker build --target capable -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest --build-arg DSH_VERSION=next .
-            docker build --target slim -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:slim --build-arg DSH_VERSION=next .
-            docker build --target ci -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:ci --build-arg DSH_VERSION=next .
+            docker build --target capable -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:latest --build-arg DSH_VERSION=0.2.3-alpha.3 .
+            docker build --target slim -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:slim --build-arg DSH_VERSION=0.2.3-alpha.3 .
+            docker build --target ci -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:ci --build-arg DSH_VERSION=0.2.3-alpha.3 .
 
         - name: push image
           script: |
@@ -220,7 +220,7 @@ $:
             dockerfile: Dockerfile.cache
             by: Dockerfile.cache
             buildArgs:
-              DSH_VERSION: next
+              DSH_VERSION: 0.2.3-alpha.3
             sync: true
           exports:
             name: CI_CACHE_IMAGE
@@ -232,7 +232,7 @@ $:
             docker build --target ci \
               ${CACHE_FROM} \
               -t docker.cnb.cool/chenxu233/oh-my-dsh-pack:ci \
-              --build-arg DSH_VERSION=next \
+              --build-arg DSH_VERSION=0.2.3-alpha.3 \
               .
             docker login docker.cnb.cool -u cnb -p "$CNB_TOKEN"
             docker push docker.cnb.cool/chenxu233/oh-my-dsh-pack:ci

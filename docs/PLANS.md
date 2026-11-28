@@ -109,7 +109,26 @@ tgz 一次改动要重打一次，但换来的是依赖真的被装上、和发�
 2. 服务器：同一入口导入，冲突逐项决策；导入前它会自动备份当前配置，出错可回滚
 3. `pluginData` 只收声明了 `dsh.dataDirs` 的插件（外加内置取证来源）；pet / task-board / image-gen / whale 这些没声明，不在任何分区里，迁移要手工拷 `$DSH_HOME/<目录>`
 
-注意 `dsh-workspace-mesh`：0.3.3 在 dsh 0.2.2 上把 volatile 的 peers 直接当数组用，空配置会抛 `options.peers is not iterable`；所以 `plans/full/config/mesh-config.json` 里预置了 `{"peers": []}`。它的 `cordis.patch.yml` 是空数组，`dsh plugin add` 只装包不挂载，所以挂载行必须写在 `patch.yml` 里。它的 `publicUrl` / `hub` 只认 `mesh-config.json`，写进 patch 会被 schema 丢掉。
+注意 `dsh-workspace-mesh`（0.3.5）：
+
+- **挂载**：0.3.4 起它的 `cordis.patch.yml` 自带 `insert` 行，`dsh plugin add` 装完就挂载了，
+  `plans/full/patch.yml` 里不要再写 `- insert: id: mesh` —— 两处都写会在组合树里出现两个
+  `id: mesh` 条目。0.3.3 的 bundle patch 是空数组，当年才必须手工 insert。
+- **peers 坑还在**：`config.peers` 是 volatile 引用，不是数组时 `?? []` 不生效，
+  `createTypertTransport` 会抛 `options.peers is not iterable`，整个条目激活失败。
+  所以 `plans/full/config/mesh-config.json` 必须预置 `{"peers": []}`（首启落地，之后归插件维护）。
+- **配置来源**：`publicUrl` / `hub` / `peers` 只认 `mesh-config.json`，写进 `patch.yml` 会被 schema 丢掉。
+
+### 已知问题：`@chenxu233/dsh-agent-teams` 在 0.2.3 上激活失败
+
+dsh 0.2.3-alpha.2 起 cordis 升到 4.2（`root` 从普通属性改成了 symbol 键），
+`@chenxu233/dsh-agent-teams@0.2.6` 里读 `ctx.root` 的那行会抛
+`Error: cannot get property "root" without inject`，整个条目激活失败。
+
+影响面：`full` 少一组 `agent_teams_*` 工具（其余 23 个插件正常），
+`ci` 镜像预装的唯一插件就是它，headless 也就没有这组工具；启动不受影响（只 WARN）。
+修法在插件仓库（改成 `inject` 拿 root，或改用 `ctx[Context.root]`），等它发新版本再把
+`plans/full/plugins.txt` 和 Dockerfile 的 ci 阶段版本抬上去。
 
 ## CI 用法（ci 方向）
 

@@ -54,7 +54,7 @@ Details in [docs/PLANS.md](docs/PLANS.md).
 
 | Path | Purpose |
 |---|---|
-| `Dockerfile` | node:24-slim + global dsh, non-root, capped heap; two env targets (`slim` / `capable`) |
+| `Dockerfile` | node:24.22-slim + global dsh, non-root, capped heap; two env targets (`slim` / `capable`) |
 | `scripts/bake-plans.sh` | Build-time copy of `plans/` into `/opt/plans-default`, so environments without a mount (e.g. cloud IDE) still boot |
 | `entrypoint.sh` | run bootstrap hooks → hand off to `scripts/plan-boot.sh` |
 | `plans/<direction>/` | **edit me**: direction (`plan.env`) + plugin list (`plugins.txt`) + plan patch (`patch.yml`); mounted, not baked |
