@@ -29,7 +29,7 @@ services:
       context: .
       target: ${DSH_DEV_TARGET:-slim}
       args:
-        DSH_VERSION: ${DSH_VERSION:-next}
+        DSH_VERSION: ${DSH_VERSION:-0.2.3-alpha.3}
         INSTALL_FFMPEG: ${INSTALL_FFMPEG:-0}
         INSTALL_CHROMIUM: ${INSTALL_CHROMIUM:-0}
     container_name: harness-dsh-dev

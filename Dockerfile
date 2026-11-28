@@ -11,14 +11,14 @@
 # 方向(plans/)的日常来源是挂载: compose 挂 ./plans:/opt/plans:ro, 改清单不用重建。
 # 镜像里另外内嵌一份默认值到 /opt/plans-default(见 scripts/bake-plans.sh):
 # 云原生开发这类没有 compose、也挂不了宿主目录的环境, 靠它才起得来。
-ARG DSH_VERSION=next
+ARG DSH_VERSION=0.2.3-alpha.3
 
 # ============================================================================
 # base: 所有档位共用的底座
 # ============================================================================
-# node 24: @deepseek-ai/dsh 0.2.2+ 的 engines 要求 node >=24.9.0
-# (镜像 tag 跟 24 大版本走, 只要 >=24.9.0 就行; 别改回 22)
-FROM node:24-bookworm-slim AS base
+# node 24: dsh 0.2.3-alpha.3 的 engines 要求 ^24.22.3 || >=26.13.1
+# (所以 tag 钉到 24.22, 不能只写 24; 别改回 22)
+FROM node:24.22-bookworm-slim AS base
 ARG DSH_VERSION
 ENV NODE_ENV=production
 # 低内存服务器护栏: 限制 V8 堆 (构建期 npm 与运行期 dsh 都生效)
@@ -78,7 +78,7 @@ USER root
 # 不碰插件目录、dsh 配置和 PATH 上的 pnpm, 也不改变 slim/capable。
 RUN mkdir -p /opt/ci-home /opt/ci-profile \
  && DSH_HOME=/opt/ci-home dsh --profile headless --dump-config >/dev/null \
- && DSH_HOME=/opt/ci-home dsh plugin --profile headless add "@chenxu233/dsh-agent-teams@0.2.4" \
+ && DSH_HOME=/opt/ci-home dsh plugin --profile headless add "@chenxu233/dsh-agent-teams@0.2.6" \
  && find "$(npm root -g)" -type f \
       \( -name '*.map' \
          -o \( -name '*.ts' -o -name '*.cts' -o -name '*.mts' -o -name '*.tsx' \) ! -name '*.d.ts' \

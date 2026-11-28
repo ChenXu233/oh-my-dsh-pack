@@ -1,4 +1,7 @@
-# mesh 的 bundle patch 是空数组, insert 才会挂载
-- insert:
-    - id: mesh
-      name: dsh-workspace-mesh
+# 计划级 patch: plan-boot 以 `dsh --patch` 叠在 profile 层之后。
+# 必须是顶层 YAML 数组; 目前没有要叠的行, 所以是空数组(文件留着当扩展点)。
+#
+# mesh 从 0.3.4 起自带 bundle patch(cordis.patch.yml 里有 insert 行),
+# `dsh plugin add` 就会挂载, 这里不用再 insert —— 重复 insert 会在组合树里
+# 出现两个 id: mesh 的条目。
+[]
