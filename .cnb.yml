@@ -116,8 +116,13 @@ main:
 
         # 按发布时间保留最近三个月版本 tag; 滚动 tag 不动。
         # 删除 tag 后未引用 blob 由制品库 GC 回收; Git tag 仍可追溯并按需重建任意版本。
+        #
+        # allowFailure: 清理是家务活, 不该因为它失败就挡住下面的 GitHub 同步和部署。
+        # 2026-11-26 的 v0.2.1 就栽在这里: date 解析失败 -> 退出 1 -> 同步和部署都没跑,
+        # 镜像推上去了但生产还是旧版本。
         - name: prune artifact tags older than 3 months
           image: node:22-alpine
+          allowFailure: true
           imports: https://cnb.cool/ChenXu233/secrets/-/blob/main/ohmydsh-registry.yml
           script: |
             set -eu
@@ -125,10 +130,11 @@ main:
             export API="https://api.cnb.cool"
             export SLUG="ChenXu233/oh-my-dsh-pack"
             export PKG="oh-my-dsh-pack"
-            d=$(date -u +%Y-%m-%d) && y=$(date -u -d "$d - 3 months" +%Y) && m=$(date -u -d "$d - 3 months" +%-m)
-            export CUTOFF="$(date -u -d "${y}-${m}-01" +%Y-%m-%dT%H:%M:%SZ)"
+            # 截止时间在 node 里算: 这个镜像是 alpine, busybox 的 date 不认
+            # "-d <日期> - 3 months", 之前就是这么炸的。
             node <<'NODE'
-            const cutoff = new Date(process.env.CUTOFF);
+            const now = new Date();
+            const cutoff = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 3, 1));
             const api = process.env.API;
             const slug = process.env.SLUG;
             const pkg = process.env.PKG;
@@ -170,8 +176,9 @@ main:
             }
 
             main().catch((error) => {
-              console.error(error.message);
-              process.exit(1);
+              // 清理失败只记日志: 令牌缺 registry-package-delete:rw 时删不掉 tag,
+              // 那是权限配置问题, 不该让整个发布失败。
+              console.warn('artifact tag prune skipped: ' + error.message);
             });
             NODE
 
